@@ -36,31 +36,36 @@ export const api = {
     return request('/dashboard/what-if', { method: 'POST', body: JSON.stringify(payload) });
   },
 
-  // ── Vendor API (always hits the real Express + Neon backend) ────────────────
-  /** Fetch all vendors */
+  // ── Vendor API ──────────────────────────────────────────────────────────────
+
+  /** Fetch all vendors (full data) */
   getVendors: () => request('/vendors'),
+
+  /** Fetch lightweight vendor codes list { id, vendorCode, name } — for dropdowns */
+  getVendorCodes: () => request('/vendors/codes'),
 
   /** Fetch a single vendor by numeric id */
   getVendor: (id) => request(`/vendors/${id}`),
 
-  /**
-   * Create a new vendor
-   * @param {{ vendorCode: string, name: string, contact?: string, email?: string,
-   *           gstin?: string, address?: string, leadTimeDays?: number, creditDays?: number }} data
-   */
+  /** Create a new vendor */
   createVendor: (data) =>
     request('/vendors', { method: 'POST', body: JSON.stringify(data) }),
 
-  /**
-   * Update an existing vendor
-   * @param {number} id
-   * @param {Partial<VendorPayload>} data
-   */
+  /** Update an existing vendor */
   updateVendor: (id, data) =>
     request(`/vendors/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   /** Delete a vendor by id */
   deleteVendor: (id) =>
     request(`/vendors/${id}`, { method: 'DELETE' }),
-};
 
+  // ── Purchase Order Email API (Nodemailer) ───────────────────────────────────
+
+  /** Send Purchase Order email to a single vendor */
+  sendPoToVendor: (data) =>
+    request('/pos/send-email', { method: 'POST', body: JSON.stringify(data) }),
+
+  /** Send Purchase Order email to all / selected vendors */
+  sendPoToAllVendors: (data) =>
+    request('/pos/send-all', { method: 'POST', body: JSON.stringify(data) }),
+};

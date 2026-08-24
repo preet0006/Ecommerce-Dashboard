@@ -5,8 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "node --watch index.js",
-    "start": "node index.js",
+    "dev": "node --env-file=.env --watch index.js",
+    "start": "node --env-file=.env index.js",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
@@ -15,7 +15,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.36.4",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "nodemailer": "^9.0.5"
   },
   "devDependencies": {
     "drizzle-kit": "^0.28.1"
