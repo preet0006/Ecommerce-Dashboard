@@ -1,0 +1,375 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   GREEN FIBRE DESIGN TOKENS
+   ============================================================ */
+
+:root {
+  /* Surfaces */
+  --color-bg: #F6F8F5;
+  --color-surface: #FFFFFF;
+  --color-border: #E2E7E0;
+
+  /* Text */
+  --color-ink: #16231D;
+  --color-ink-muted: #5B6B62;
+
+  /* Brand */
+  --color-primary: #1F6E4C;
+  --color-primary-soft: #E7F2EC;
+  --color-primary-strong: #14513A;
+
+  /* Status */
+  --color-amber: #B9791E;
+  --color-amber-soft: #FBF1DF;
+
+  --color-red: #B23A34;
+  --color-red-soft: #FBEAE8;
+
+  /* Shape */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+
+  /* Shadow */
+  --shadow-card:
+    0 1px 2px rgba(20, 35, 26, 0.04),
+    0 8px 24px -14px rgba(20, 35, 26, 0.16);
+
+  /* Fonts */
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+
+/* ============================================================
+   BASE
+   ============================================================ */
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-bg text-ink font-sans;
+    margin: 0;
+    min-width: 320px;
+    background-color: var(--color-bg);
+    font-family: var(--font-body);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display text-ink;
+  }
+
+  ::selection {
+    background: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+  }
+}
+
+
+/* ============================================================
+   COMPONENTS
+   ============================================================ */
+
+@layer components {
+
+  /* ----------------------------------------------------------
+     CARDS
+     ---------------------------------------------------------- */
+
+  .card {
+    @apply bg-surface border border-border rounded-lg;
+    box-shadow: var(--shadow-card);
+  }
+
+  .kpi-card {
+    @apply card p-5 flex flex-col gap-2 relative;
+  }
+
+
+  /* ----------------------------------------------------------
+     BADGES
+     ---------------------------------------------------------- */
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full
+           px-2.5 py-1 text-xs font-medium whitespace-nowrap;
+  }
+
+  .badge-ok {
+    @apply badge bg-primary-soft text-primary-strong;
+  }
+
+  .badge-warn {
+    @apply badge bg-amber-soft text-amber;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-soft text-red;
+  }
+
+
+  /* ----------------------------------------------------------
+     BUTTONS
+     ---------------------------------------------------------- */
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2
+           rounded-md px-4 py-2 text-sm font-medium
+           transition-colors duration-150
+           disabled:opacity-50
+           disabled:pointer-events-none;
+  }
+
+  .btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary text-white;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-primary-strong);
+  }
+
+  .btn-outline {
+    @apply btn border border-border bg-surface text-ink;
+  }
+
+  .btn-outline:hover {
+    border-color: rgba(31, 110, 76, 0.4);
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-ink-muted;
+  }
+
+  .btn-ghost:hover {
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+  }
+
+
+  /* ----------------------------------------------------------
+     FORM CONTROLS
+     ---------------------------------------------------------- */
+
+  .input {
+    @apply w-full rounded-md border
+           bg-surface px-3 py-2
+           text-sm text-ink
+           transition-colors;
+    
+    border-color: var(--color-border);
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+
+    box-shadow:
+      0 0 0 2px rgba(31, 110, 76, 0.3);
+  }
+
+  .input::placeholder {
+    color: var(--color-ink-muted);
+    opacity: 0.6;
+  }
+
+  .label {
+    @apply block mb-1 text-sm text-ink-muted;
+  }
+
+
+  /* ----------------------------------------------------------
+     SELECT
+     ---------------------------------------------------------- */
+
+  .select {
+    @apply w-full rounded-md border
+           bg-surface px-3 py-2
+           text-sm text-ink
+           transition-colors;
+    
+    border-color: var(--color-border);
+  }
+
+  .select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+
+    box-shadow:
+      0 0 0 2px rgba(31, 110, 76, 0.3);
+  }
+
+
+  /* ----------------------------------------------------------
+     TEXTAREA
+     ---------------------------------------------------------- */
+
+  .textarea {
+    @apply w-full rounded-md border
+           bg-surface px-3 py-2
+           text-sm text-ink
+           transition-colors
+           resize-y;
+
+    border-color: var(--color-border);
+  }
+
+  .textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+
+    box-shadow:
+      0 0 0 2px rgba(31, 110, 76, 0.3);
+  }
+
+  .textarea::placeholder {
+    color: var(--color-ink-muted);
+    opacity: 0.6;
+  }
+
+
+  /* ----------------------------------------------------------
+     LOADING
+     ---------------------------------------------------------- */
+
+  .skeleton {
+    @apply animate-pulse rounded-md bg-primary-soft;
+  }
+
+
+  /* ----------------------------------------------------------
+     SIDEBAR
+     ---------------------------------------------------------- */
+
+  .sidebar-link {
+    @apply flex items-center gap-3
+           rounded-md px-3 py-2
+           text-sm font-medium text-ink-muted
+           transition-colors;
+  }
+
+  .sidebar-link:hover {
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+  }
+
+  .sidebar-link-active {
+    @apply sidebar-link;
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+  }
+
+
+  /* ----------------------------------------------------------
+     TYPOGRAPHY
+     ---------------------------------------------------------- */
+
+  .section-title {
+    @apply font-display text-sm font-semibold
+           uppercase tracking-wide text-ink-muted;
+  }
+
+  .stat-figure {
+    @apply font-mono text-2xl font-semibold
+           tabular-nums text-ink;
+  }
+
+
+  /* ----------------------------------------------------------
+     TABLE
+     ---------------------------------------------------------- */
+
+  .table-clean {
+    @apply w-full text-sm;
+  }
+
+  .table-clean th {
+    @apply text-left font-medium text-ink-muted
+           text-xs uppercase tracking-wide
+           pb-2 border-b border-border;
+  }
+
+  .table-clean td {
+    @apply py-2.5
+           border-b
+           text-ink;
+
+    border-bottom-color: rgba(226, 231, 224, 0.7);
+  }
+}
+
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-enter {
+  animation: fadeInUp 0.35s ease-out both;
+}
+
+
+/* ============================================================
+   ACCESSIBILITY
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-enter {
+    animation: none;
+  }
+
+  .skeleton {
+    animation: none;
+  }
+}
+
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-muted);
+}

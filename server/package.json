@@ -1,0 +1,23 @@
+{
+  "name": "greenfibre-server",
+  "version": "1.0.0",
+  "description": "GreenFibre Express API server with Drizzle ORM + Neon PostgreSQL",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.36.4",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.28.1"
+  }
+}
