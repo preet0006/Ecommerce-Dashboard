@@ -9,6 +9,7 @@ import Reports from "./pages/Reports";
 import Forecasting from "./pages/Forecasting";
 import Inventory from "./pages/Inventory";
 import PricingDiscounts from "./pages/PricingDiscount";
+import ChannelOrders from "./pages/ChannelOrders";
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
                     <Route path="/pricing" element={<PricingDiscounts />} />
                   <Route path="/forecasting" element={<Forecasting />} />
                     <Route path="/reports" element={<Reports />} />
+                    <Route path="/channel-orders" element={<ChannelOrders />} />
             </Routes>
           </main>
         </div>

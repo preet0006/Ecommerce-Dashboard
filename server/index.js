@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import vendorRoutes from './routes/vendors.js';
 import poRoutes from './routes/pos.js';
+import channelOrderRoutes from './routes/channelOrders.js';
+import { runMockChannelSync } from './jobs/mockChannelSync.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -22,6 +24,7 @@ app.get('/api/health', (_req, res) => {
 // ── Routes ──────────────────────────────────────────────────────────
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/pos', poRoutes);
+app.use('/api/channel-orders', channelOrderRoutes);
 
 // ── 404 fallback ────────────────────────────────────────────────────
 app.use((_req, res) => {
@@ -35,7 +38,12 @@ app.use((err, _req, res, _next) => {
 });
 
 // ── Start ────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`✅  GreenFibre API server running on http://localhost:${PORT}`);
   console.log(`   Neon DB: ${process.env.DATABASE_URL ? '🟢 Connected' : '🔴 DATABASE_URL not set!'}`);
+
+  // Run fake channel sync on startup (stand-in for real cron/API job)
+  await runMockChannelSync().catch((err) =>
+    console.error('[mockChannelSync] Startup sync failed:', err.message)
+  );
 });

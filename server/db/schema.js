@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, integer, numeric, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, integer, numeric, timestamp, unique } from 'drizzle-orm/pg-core';
 
 // ─── Vendors ────────────────────────────────────────────────────────────────
 export const vendors = pgTable('vendors', {
@@ -18,3 +18,20 @@ export const vendors = pgTable('vendors', {
   createdAt:    timestamp('created_at').defaultNow().notNull(),
   updatedAt:    timestamp('updated_at').defaultNow().notNull(),
 });
+
+// ─── Channel Orders ──────────────────────────────────────────────────────────
+export const channelOrders = pgTable('channel_orders', {
+  id:             serial('id').primaryKey(),
+  channel:        varchar('channel', { length: 20 }).notNull(),           // 'amazon' | 'flipkart' | 'website'
+  channelOrderId: varchar('channel_order_id', { length: 100 }).notNull(), // order ID as given by that channel
+  productName:    varchar('product_name', { length: 200 }).notNull(),
+  productSku:     varchar('product_sku', { length: 100 }),
+  quantity:       integer('quantity').default(1).notNull(),
+  price:          numeric('price', { precision: 10, scale: 2 }).notNull(),
+  status:         varchar('status', { length: 30 }).notNull(),             // 'pending'|'shipped'|'delivered'|'cancelled'|'returned'
+  location:       varchar('location', { length: 150 }),
+  orderedAt:      timestamp('ordered_at').notNull(),
+  lastSyncedAt:   timestamp('last_synced_at').defaultNow().notNull(),
+}, (t) => ({
+  uniqChannelOrder: unique('uq_channel_order').on(t.channel, t.channelOrderId),
+}));

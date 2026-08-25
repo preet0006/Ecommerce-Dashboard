@@ -68,4 +68,21 @@ export const api = {
   /** Send Purchase Order email to all / selected vendors */
   sendPoToAllVendors: (data) =>
     request('/pos/send-all', { method: 'POST', body: JSON.stringify(data) }),
+
+  // ── Channel Orders API ──────────────────────────────────────────────────────
+
+  /**
+   * Fetch all channel orders — most recent orderedAt first.
+   * @param {{ channel?: string, status?: string }} [params]
+   */
+  getChannelOrders: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.channel) qs.set('channel', params.channel);
+    if (params.status)  qs.set('status',  params.status);
+    const query = qs.toString();
+    return request(`/channel-orders${query ? `?${query}` : ''}`);
+  },
+
+  /** Fetch a single channel order by numeric id */
+  getChannelOrder: (id) => request(`/channel-orders/${id}`),
 };

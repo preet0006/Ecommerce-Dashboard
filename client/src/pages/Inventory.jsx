@@ -13,6 +13,52 @@ const MOCK_STOCK = [
   { sku: 'GF-BWL-014', name: 'Bowl Set B (6pc)', warehouse: 'Bhiwandi', physical: 180, inTransit: 800, reserved: 60 },
   { sku: 'GF-PET-002', name: 'Pet Bowl Steel', warehouse: 'Delhi NCR', physical: 900, inTransit: 0, reserved: 20 },
   { sku: 'GF-CAS-005', name: 'Casserole Set C (5pc)', warehouse: 'Bhiwandi', physical: 90, inTransit: 400, reserved: 15 },
+  { sku: 'GF-PLT-003', name: 'Dinner Plate Set (6pc)', warehouse: 'Bengaluru', physical: 500, inTransit: 200, reserved: 50 },
+  { sku: 'GF-MUG-008', name: 'Ceramic Mug Set (4pc)', warehouse: 'Delhi NCR', physical: 320, inTransit: 150, reserved: 30 },
+  { sku: 'GF-BOT-012', name: 'Stainless Steel Bottle 1L', warehouse: 'Bhiwandi', physical: 1200, inTransit: 0, reserved: 110 },
+  { sku: 'GF-LNC-007', name: 'Bento Lunch Box 3-Tier', warehouse: 'Kolkata', physical: 450, inTransit: 300, reserved: 45 },
+  { sku: 'GF-GLS-004', name: 'Highball Tumbler (6pc)', warehouse: 'Bengaluru', physical: 280, inTransit: 0, reserved: 25 },
+  { sku: 'GF-JAR-019', name: 'Airtight Spice Jar (12pc)', warehouse: 'Ahmedabad', physical: 600, inTransit: 500, reserved: 80 },
+  { sku: 'GF-PAN-002', name: 'Non-Stick Frying Pan 24cm', warehouse: 'Chennai', physical: 350, inTransit: 100, reserved: 35 },
+  { sku: 'GF-KTL-006', name: 'Electric Glass Kettle 1.8L', warehouse: 'Delhi NCR', physical: 410, inTransit: 0, reserved: 50 },
+  { sku: 'GF-CTB-001', name: 'Bamboo Cutting Board', warehouse: 'Hyderabad', physical: 750, inTransit: 250, reserved: 60 },
+  { sku: 'GF-KNF-010', name: 'Chef Knife Set (5pc)', warehouse: 'Bhiwandi', physical: 190, inTransit: 300, reserved: 20 },
+  { sku: 'GF-STR-015', name: 'Silicone Spatula Set (4pc)', warehouse: 'Bengaluru', physical: 820, inTransit: 0, reserved: 70 },
+  { sku: 'GF-OVK-003', name: 'Oven Baking Dish Glass', warehouse: 'Delhi NCR', physical: 150, inTransit: 200, reserved: 15 },
+  { sku: 'GF-TEA-009', name: 'Cast Iron Teapot 800ml', warehouse: 'Bhiwandi', physical: 220, inTransit: 100, reserved: 20 },
+  { sku: 'GF-TRN-005', name: 'Serving Tray Wooden', warehouse: 'Kolkata', physical: 310, inTransit: 0, reserved: 30 },
+  { sku: 'GF-CAN-021', name: 'Stainless Steel Canister Set', warehouse: 'Ahmedabad', physical: 480, inTransit: 350, reserved: 40 },
+  { sku: 'GF-COA-002', name: 'Bamboo Drink Coasters (6pc)', warehouse: 'Hyderabad', physical: 950, inTransit: 0, reserved: 50 },
+  { sku: 'GF-SLD-008', name: 'Salad Spinner Large', warehouse: 'Bhiwandi', physical: 130, inTransit: 150, reserved: 10 },
+  { sku: 'GF-WOK-001', name: 'Carbon Steel Wok 30cm', warehouse: 'Delhi NCR', physical: 270, inTransit: 200, reserved: 25 },
+  { sku: 'GF-OIL-011', name: 'Glass Oil Dispenser 500ml', warehouse: 'Bengaluru', physical: 640, inTransit: 400, reserved: 60 },
+  { sku: 'GF-THM-004', name: 'Insulated Food Flask 750ml', warehouse: 'Chennai', physical: 520, inTransit: 0, reserved: 45 },
+  { sku: 'GF-ICE-007', name: 'Silicone Ice Cube Tray (2pc)', warehouse: 'Bhiwandi', physical: 1100, inTransit: 0, reserved: 80 },
+  { sku: 'GF-BRL-003', name: 'Bread Box Matte Black', warehouse: 'Delhi NCR', physical: 160, inTransit: 100, reserved: 15 },
+  { sku: 'GF-CUP-016', name: 'Espresso Cup & Saucer (2pc)', warehouse: 'Kolkata', physical: 380, inTransit: 250, reserved: 30 },
+  { sku: 'GF-RND-005', name: 'Roti Dabba with Tongs', warehouse: 'Ahmedabad', physical: 700, inTransit: 0, reserved: 55 },
+  { sku: 'GF-PEE-002', name: 'Stainless Steel Y-Peeler', warehouse: 'Hyderabad', physical: 1400, inTransit: 600, reserved: 120 },
+  { sku: 'GF-GRL-009', name: 'Cast Iron Grill Pan 28cm', warehouse: 'Bengaluru', physical: 210, inTransit: 150, reserved: 20 },
+  { sku: 'GF-TOW-013', name: 'Microfiber Kitchen Towels (6pc)', warehouse: 'Bhiwandi', physical: 890, inTransit: 0, reserved: 75 },
+  { sku: 'GF-MAS-006', name: 'Mortar & Pestle Granite', warehouse: 'Delhi NCR', physical: 175, inTransit: 120, reserved: 15 },
+  { sku: 'GF-PCH-001', name: 'Measuring Spoons & Cups Set', warehouse: 'Chennai', physical: 980, inTransit: 300, reserved: 90 },
+  { sku: 'GF-JUG-018', name: 'Copper Water Jug 1.5L', warehouse: 'Ahmedabad', physical: 340, inTransit: 0, reserved: 30 },
+  { sku: 'GF-DIS-004', name: 'Dish Drying Rack 2-Tier', warehouse: 'Bhiwandi', physical: 260, inTransit: 200, reserved: 25 },
+  { sku: 'GF-CFL-010', name: 'French Press Coffee Maker 600ml', warehouse: 'Delhi NCR', physical: 430, inTransit: 180, reserved: 40 },
+  { sku: 'GF-BWT-003', name: 'Butter Dish with Lid', warehouse: 'Kolkata', physical: 510, inTransit: 0, reserved: 35 },
+  { sku: 'GF-NAP-012', name: 'Cotton Table Napkins (8pc)', warehouse: 'Bengaluru', physical: 620, inTransit: 200, reserved: 50 },
+  { sku: 'GF-PPR-007', name: 'Wooden Pepper Mill Grinder', warehouse: 'Hyderabad', physical: 390, inTransit: 150, reserved: 30 },
+  { sku: 'GF-STN-002', name: 'Stainless Steel Colander', warehouse: 'Bhiwandi', physical: 580, inTransit: 0, reserved: 45 },
+  { sku: 'GF-CAK-015', name: 'Round Cake Springform Pan', warehouse: 'Delhi NCR', physical: 290, inTransit: 250, reserved: 20 },
+  { sku: 'GF-GLB-008', name: 'Silicone Oven Gloves (Pair)', warehouse: 'Chennai', physical: 730, inTransit: 0, reserved: 60 },
+  { sku: 'GF-MAT-005', name: 'Heat Resistant Silicone Trivet (3pc)', warehouse: 'Ahmedabad', physical: 860, inTransit: 400, reserved: 70 },
+  { sku: 'GF-SPO-022', name: 'Wooden Cooking Spoon Set (5pc)', warehouse: 'Bengaluru', physical: 670, inTransit: 0, reserved: 50 },
+  { sku: 'GF-CUT-004', name: 'Flatware Cutlery Set (24pc)', warehouse: 'Bhiwandi', physical: 190, inTransit: 300, reserved: 25 },
+  { sku: 'GF-WST-001', name: 'Stainless Steel Whisk 10in', warehouse: 'Delhi NCR', physical: 1050, inTransit: 0, reserved: 85 },
+  { sku: 'GF-TIN-011', name: 'Tea & Sugar Canister Pair', warehouse: 'Kolkata', physical: 440, inTransit: 200, reserved: 35 },
+  { sku: 'GF-SCR-003', name: 'Vegetable Spiralizer Handheld', warehouse: 'Hyderabad', physical: 310, inTransit: 150, reserved: 20 },
+  { sku: 'GF-RAC-009', name: 'Under-Shelf Mug Rack Holder', warehouse: 'Chennai', physical: 530, inTransit: 0, reserved: 40 },
+  { sku: 'GF-SIV-006', name: 'Fine Mesh Flour Sieve', warehouse: 'Bhiwandi', physical: 780, inTransit: 300, reserved: 65 },
 ];
 
 /* ── AI Reorder data — each field feeds the scoring engine ── */
@@ -346,9 +392,12 @@ function StockOverview({ rows }) {
 
   return (
     <div className="card p-5 animate-enter">
-      <div className="relative w-full max-w-sm mb-4">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-        <input className="input pl-9" placeholder="Search by SKU or product name" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="relative w-full max-w-sm">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
+          <input className="input pl-9" placeholder="Search by SKU or product name" value={query} onChange={(e) => setQuery(e.target.value)} />
+        </div>
+        <span className="text-xs text-ink-muted font-mono">{filtered.length} products</span>
       </div>
       <table className="table-clean">
         <thead>

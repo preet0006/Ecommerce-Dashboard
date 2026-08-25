@@ -297,21 +297,55 @@
      ---------------------------------------------------------- */
 
   .table-clean {
-    @apply w-full text-sm;
+    width: 100%;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    border-collapse: collapse;
   }
 
   .table-clean th {
-    @apply text-left font-medium text-ink-muted
-           text-xs uppercase tracking-wide
-           pb-2 border-b border-border;
+    font-weight: 500;
+    color: var(--color-ink-muted);
+    font-size: 0.75rem;
+    line-height: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-top: 0.25rem;
+    padding-bottom: 0.625rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
   }
 
   .table-clean td {
-    @apply py-2.5
-           border-b
-           text-ink;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    border-bottom: 1px solid rgba(226, 231, 224, 0.7);
+    color: var(--color-ink);
+    text-align: left;
+  }
 
-    border-bottom-color: rgba(226, 231, 224, 0.7);
+  .table-clean th:first-child,
+  .table-clean td:first-child {
+    padding-left: 0;
+  }
+
+  .table-clean th:last-child,
+  .table-clean td:last-child {
+    padding-right: 0;
+  }
+
+  .table-clean th[class*="text-right"],
+  .table-clean td[class*="text-right"] {
+    text-align: right;
+  }
+
+  .table-clean th[class*="text-center"],
+  .table-clean td[class*="text-center"] {
+    text-align: center;
   }
 }
 

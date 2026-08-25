@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Settings,
   Sparkles,
+  ShoppingBag,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -53,6 +54,11 @@ const NAV = [
     label: "Forecasting",
     icon: TrendingUp,
     path: "/forecasting",
+  },
+  {
+    label: "Channel Orders",
+    icon: ShoppingBag,
+    path: "/channel-orders",
   },
 ];
 
