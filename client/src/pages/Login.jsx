@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { login as loginApi } from '../lib/api';
 import greenfibreLeaves from '../assets/greenfibre-leaves.png';
+import greenfibreGLogo from '../assets/greenfibre-g-logo.png';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -43,21 +44,21 @@ export default function Login() {
         className="hidden lg:flex w-1/2 relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #092c1e 0%, #1F6E4C 55%, #3a9b6f 100%)' }}
       >
-        {/* Large watermark leaves emblem in background */}
-        <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-[520px] h-[520px] pointer-events-none select-none flex items-center justify-center opacity-[0.09] filter brightness-200">
+        {/* Large ambient watermark logo in background */}
+        <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-[520px] h-[520px] pointer-events-none select-none flex items-center justify-center opacity-[0.08] filter brightness-200">
           <img
-            src={greenfibreLeaves}
+            src={greenfibreGLogo}
             alt=""
             className="w-full h-full object-contain"
           />
         </div>
 
-        {/* Top-Right Shaded Watermark Badge */}
-        <div className="absolute right-8 top-10 w-40 h-40 rounded-full bg-white/[0.08] border border-white/15 p-7 flex items-center justify-center pointer-events-none select-none shadow-2xl backdrop-blur-xs">
+        {/* Top-Right Shaded Watermark Badge (Official G-Logo with leaves) */}
+        <div className="absolute right-8 top-10 w-44 h-44 rounded-full bg-white/[0.08] border border-white/15 p-6 flex items-center justify-center pointer-events-none select-none shadow-2xl backdrop-blur-xs">
           <img
-            src={greenfibreLeaves}
-            alt=""
-            className="w-full h-full object-contain opacity-45 filter drop-shadow-md"
+            src={greenfibreGLogo}
+            alt="Green Fibre G Emblem"
+            className="w-full h-full object-contain opacity-50 filter drop-shadow-md brightness-110"
           />
         </div>
 
