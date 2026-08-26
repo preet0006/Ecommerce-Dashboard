@@ -46,6 +46,7 @@ function renderPoEmailHtml({ vendorName, poDetails }) {
   const {
     poNumber = `PO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
     sku = 'GF-CAS-001',
+    productName = '',
     qty = 0,
     rate = 0,
     creditDays = 30,
@@ -251,7 +252,7 @@ function renderPoEmailHtml({ vendorName, poDetails }) {
                     <tr style="background-color: #ffffff; border-bottom: 1px solid #e7eee9;">
                       <td style="padding: 18px 20px; vertical-align: middle;">
                         <strong style="color: #092c1e; font-family: monospace, sans-serif; font-size: 15px;">${sku}</strong>
-                        <div style="font-size: 12px; color: #6b7f74; margin-top: 4px;">Standard Finished Goods</div>
+                        <div style="font-size: 13px; color: #3e5a4b; margin-top: 4px; font-weight: 600;">${productName || 'Standard Finished Goods'}</div>
                       </td>
                       <td style="padding: 18px 16px; text-align: right; vertical-align: middle; font-family: monospace, sans-serif; font-size: 15px; font-weight: 700; color: #16231d;">
                         ${formattedQty} units
@@ -284,8 +285,9 @@ function renderPoEmailHtml({ vendorName, poDetails }) {
                   <!-- ITEM HEADER -->
                   <tr>
                     <td style="background-color: #eef5f0; padding: 16px 20px; border-bottom: 1px solid #d4e0d9;">
-                      <span style="font-size: 10px; font-weight: 700; color: #576d61; text-transform: uppercase; letter-spacing: 0.6px; display: block; margin-bottom: 2px;">Ordered Item SKU</span>
+                      <span style="font-size: 10px; font-weight: 700; color: #576d61; text-transform: uppercase; letter-spacing: 0.6px; display: block; margin-bottom: 2px;">Ordered Item</span>
                       <strong style="color: #092c1e; font-family: monospace, sans-serif; font-size: 17px;">${sku}</strong>
+                      ${productName ? `<div style="font-size: 13px; color: #3e5a4b; font-weight: 600; margin-top: 3px;">${productName}</div>` : ''}
                     </td>
                   </tr>
 
@@ -427,7 +429,7 @@ export async function sendPurchaseOrderEmail({ to, vendorName, poDetails }) {
     from: sender,
     to,
     subject: `Purchase Order ${poNumber} - Green Fibre`,
-    text: `Purchase Order ${poNumber}\nVendor: ${vendorName}\nSKU: ${poDetails?.sku}\nQty: ${poDetails?.qty}\nRate: ₹${poDetails?.rate}\nTotal: ₹${((Number(poDetails?.qty) || 0) * (Number(poDetails?.rate) || 0)).toLocaleString('en-IN')}`,
+    text: `Purchase Order ${poNumber}\nVendor: ${vendorName}\nItem: ${poDetails?.productName ? `${poDetails.productName} (${poDetails.sku})` : (poDetails?.sku || 'GF-CAS-001')}\nQty: ${poDetails?.qty}\nRate: ₹${poDetails?.rate}\nTotal: ₹${((Number(poDetails?.qty) || 0) * (Number(poDetails?.rate) || 0)).toLocaleString('en-IN')}`,
     html: renderPoEmailHtml({ vendorName, poDetails: { ...poDetails, poNumber } }),
   };
 
