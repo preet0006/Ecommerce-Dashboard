@@ -171,4 +171,34 @@ export const api = {
   /** Save application setting */
   saveAppSettings: (data) =>
     request('/settings/general', { method: 'POST', body: JSON.stringify(data) }),
+
+  // ── Price Changes API ───────────────────────────────────────────────────────
+
+  createPriceChangeRequest: (payload) =>
+    request('/price-changes', { method: 'POST', body: JSON.stringify(payload) }),
+
+  getPriceChanges: (status) => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return request(`/price-changes${qs}`);
+  },
+
+  decidePriceChange: (id, action) =>
+    request(`/price-changes/${id}/decide`, { method: 'POST', body: JSON.stringify({ action }) }),
+
+  withdrawPriceChange: (id) =>
+    request(`/price-changes/${id}/decide`, { method: 'POST', body: JSON.stringify({ action: 'withdraw' }) }),
 };
+
+export const createPriceChangeRequest = (payload) =>
+  request('/price-changes', { method: 'POST', body: JSON.stringify(payload) });
+
+export const getPriceChanges = (status) => {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+  return request(`/price-changes${qs}`);
+};
+
+export const decidePriceChange = (id, action) =>
+  request(`/price-changes/${id}/decide`, { method: 'POST', body: JSON.stringify({ action }) });
+
+export const withdrawPriceChange = (id) =>
+  request(`/price-changes/${id}/decide`, { method: 'POST', body: JSON.stringify({ action: 'withdraw' }) });

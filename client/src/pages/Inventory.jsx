@@ -8,13 +8,8 @@ import InTransitTracking from '../components/inventory/InTransitTracking';
 import DeadStockReport from '../components/inventory/DeadStockReport';
 
 // Shared helpers & data
-import {
-  INVENTORY_TABS,
-  MOCK_STOCK,
-  MOCK_REORDER,
-  MOCK_IN_TRANSIT,
-  MOCK_DEAD_STOCK,
-} from '../components/inventory/utils';
+import { INVENTORY_TABS, MOCK_IN_TRANSIT } from '../components/inventory/utils';
+import { UNIFIED_PRODUCTS } from '../lib/productsData';
 
 export default function Inventory() {
   const [activeTab, setActiveTab] = useState('stock');
@@ -45,10 +40,10 @@ export default function Inventory() {
         })}
       </div>
 
-      {activeTab === 'stock'   && <StockOverview rows={MOCK_STOCK} />}
-      {activeTab === 'reorder' && <ReorderRecommendations rows={MOCK_REORDER} />}
+      {activeTab === 'stock'   && <StockOverview rows={UNIFIED_PRODUCTS} />}
+      {activeTab === 'reorder' && <ReorderRecommendations rows={UNIFIED_PRODUCTS} />}
       {activeTab === 'transit' && <InTransitTracking rows={MOCK_IN_TRANSIT} />}
-      {activeTab === 'dead'    && <DeadStockReport rows={MOCK_DEAD_STOCK} />}
+      {activeTab === 'dead'    && <DeadStockReport rows={UNIFIED_PRODUCTS.filter(r => (r.lastSaleDaysAgo || 0) > 45)} />}
     </div>
   );
 }
