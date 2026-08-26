@@ -40,8 +40,10 @@ async function ensureTable() {
         email_status VARCHAR(20) DEFAULT 'sent',
         email_preview_url TEXT,
         created_at TIMESTAMP DEFAULT NOW() NOT NULL
-      );
-      ALTER TABLE price_changes ADD COLUMN IF NOT EXISTS decided_by VARCHAR(150);
+      )
+    `);
+    await db.execute(`
+      ALTER TABLE price_changes ADD COLUMN IF NOT EXISTS decided_by VARCHAR(150)
     `);
     tableChecked = true;
   } catch (err) {
