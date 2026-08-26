@@ -5,6 +5,8 @@ import vendorRoutes from './routes/vendors.js';
 import poRoutes from './routes/pos.js';
 import channelOrderRoutes from './routes/channelOrders.js';
 import { runMockChannelSync } from './jobs/mockChannelSync.js';
+import { initTables } from './db/initTables.js';
+import { startVendorFollowUpCron } from './jobs/vendorFollowupCron.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,7 +44,15 @@ app.listen(PORT, async () => {
   console.log(`✅  GreenFibre API server running on http://localhost:${PORT}`);
   console.log(`   Neon DB: ${process.env.DATABASE_URL ? '🟢 Connected' : '🔴 DATABASE_URL not set!'}`);
 
-  // Run fake channel sync on startup (stand-in for real cron/API job)
+  // 1. Verify / initialize DB tables
+  await initTables().catch((err) =>
+    console.error('[initTables] Startup table check failed:', err.message)
+  );
+
+  // 2. Start daily 10-day vendor follow-up cron job
+  startVendorFollowUpCron();
+
+  // 3. Run fake channel sync on startup (stand-in for real cron/API job)
   await runMockChannelSync().catch((err) =>
     console.error('[mockChannelSync] Startup sync failed:', err.message)
   );

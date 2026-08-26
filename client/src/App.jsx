@@ -1,5 +1,6 @@
 import Sidebar from "./components/layout/Sidebar";
 import Topbar from "./components/layout/Topbar";
+import DeliveryArrivalModal from "./components/DeliveryArrivalModal";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Home from "./pages/Home";
 import ProductMaster from "./pages/ProductMaster";
@@ -20,17 +21,20 @@ export default function App() {
         <div className="flex-1 flex flex-col min-w-0">
           <Topbar />
 
+          {/* Automatic Delivery Arrival Verification Check on Homescreen / Dashboard */}
+          <DeliveryArrivalModal />
+
           <main className="flex-1">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/products" element={<ProductMaster />} />
-               <Route path="/vendors" element={<VendorMaster />} />
-                 <Route path="/purchase" element={<PurchaseOrders />} />
-                  <Route path="/inventory" element={<Inventory />} />
-                    <Route path="/pricing" element={<PricingDiscounts />} />
-                  <Route path="/forecasting" element={<Forecasting />} />
-                    <Route path="/reports" element={<Reports />} />
-                    <Route path="/channel-orders" element={<ChannelOrders />} />
+              <Route path="/vendors" element={<VendorMaster />} />
+              <Route path="/purchase" element={<PurchaseOrders />} />
+              <Route path="/inventory" element={<Inventory />} />
+              <Route path="/pricing" element={<PricingDiscounts />} />
+              <Route path="/forecasting" element={<Forecasting />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/channel-orders" element={<ChannelOrders />} />
             </Routes>
           </main>
         </div>

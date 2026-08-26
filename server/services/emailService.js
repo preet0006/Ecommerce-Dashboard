@@ -39,12 +39,13 @@ async function getTransporter() {
 }
 
 /**
- * Generate a clean, responsive HTML email template for GreenFibre Purchase Orders
+ * Generate an ultra-wide, spacious, premium HTML email template for GreenFibre Purchase Orders.
+ * Features a 680px desktop width, full-bleed mobile layout, extra-wide metric cards, and zero wrapping.
  */
 function renderPoEmailHtml({ vendorName, poDetails }) {
   const {
     poNumber = `PO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-    sku = 'N/A',
+    sku = 'GF-CAS-001',
     qty = 0,
     rate = 0,
     creditDays = 30,
@@ -54,6 +55,7 @@ function renderPoEmailHtml({ vendorName, poDetails }) {
 
   const totalValue = (Number(qty) || 0) * (Number(rate) || 0);
   const formattedTotal = totalValue.toLocaleString('en-IN');
+  const formattedRate = Number(rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const formattedQty = Number(qty || 0).toLocaleString('en-IN');
   const issueDate = new Date().toLocaleDateString('en-IN', {
     day: 'numeric',
@@ -63,92 +65,347 @@ function renderPoEmailHtml({ vendorName, poDetails }) {
 
   return `
 <!DOCTYPE html>
-<html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Purchase Order - ${poNumber}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Purchase Order ${poNumber} - GreenFibre</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f6f8f5; margin: 0; padding: 24px; color: #16231d; }
-    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e7e0; overflow: hidden; box-shadow: 0 4px 12px rgba(20, 35, 26, 0.05); }
-    .header { background: #1f6e4c; color: #ffffff; padding: 24px 32px; }
-    .header h1 { margin: 0; font-size: 22px; font-weight: 700; }
-    .header p { margin: 4px 0 0 0; font-size: 14px; opacity: 0.9; }
-    .content { padding: 32px; }
-    .greeting { font-size: 16px; margin-bottom: 20px; }
-    .po-badge { display: inline-block; background: #e7f2ec; color: #14513a; font-weight: 600; padding: 4px 10px; border-radius: 6px; font-size: 13px; margin-bottom: 16px; }
-    .table-box { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
-    .table-box th { background: #f6f8f5; color: #5b6b62; text-align: left; padding: 10px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e7e0; }
-    .table-box td { padding: 12px 14px; border-bottom: 1px solid #f0f3ef; }
-    .table-box .num { text-align: right; font-family: monospace, sans-serif; }
-    .total-row { background: #f6f8f5; font-weight: 700; }
-    .total-row td { border-top: 2px solid #e2e7e0; color: #14513a; font-size: 16px; }
-    .meta-grid { display: table; width: 100%; margin: 16px 0; }
-    .meta-col { display: table-cell; width: 50%; vertical-align: top; font-size: 13px; line-height: 1.6; }
-    .notes-box { background: #fbf1df; border-left: 4px solid #b9791e; padding: 12px 16px; border-radius: 4px; font-size: 13px; color: #5f3e0f; margin-top: 20px; }
-    .footer { padding: 24px 32px; background: #f9faf8; border-top: 1px solid #e2e7e0; font-size: 12px; color: #5b6b62; text-align: center; }
+    /* Reset & Base */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      min-width: 100% !important;
+      background-color: #edf2ee;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    table {
+      border-spacing: 0 !important;
+      border-collapse: collapse !important;
+      table-layout: fixed !important;
+      margin: 0 auto !important;
+    }
+    img {
+      border: 0;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+    }
+    .wrapper {
+      width: 100%;
+      table-layout: fixed;
+      background-color: #edf2ee;
+      padding: 36px 0;
+    }
+    .main-card {
+      background-color: #ffffff;
+      margin: 0 auto;
+      max-width: 680px;
+      width: 100%;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 12px 36px rgba(13, 56, 38, 0.08);
+      border: 1px solid #d8e2dc;
+    }
+
+    /* Desktop vs Mobile display helpers */
+    .mobile-only {
+      display: none !important;
+      max-height: 0px !important;
+      overflow: hidden !important;
+      mso-hide: all !important;
+    }
+    .desktop-only {
+      display: table !important;
+    }
+
+    /* Mobile Responsive Wide Layout */
+    @media only screen and (max-width: 640px) {
+      .wrapper {
+        padding: 0 !important;
+      }
+      .main-card {
+        border-radius: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        border-left: 0 !important;
+        border-right: 0 !important;
+        border-top: 0 !important;
+      }
+      .content-padding {
+        padding: 24px 20px !important;
+      }
+      .header-padding {
+        padding: 26px 20px !important;
+      }
+      .desktop-only {
+        display: none !important;
+        max-height: 0px !important;
+        overflow: hidden !important;
+      }
+      .mobile-only {
+        display: table !important;
+        max-height: none !important;
+        overflow: visible !important;
+        width: 100% !important;
+      }
+      .col-stack {
+        display: block !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        margin-bottom: 14px !important;
+      }
+      .hide-mobile {
+        display: none !important;
+      }
+    }
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Green Fibre Procurement</h1>
-      <p>Official Purchase Order Request</p>
-    </div>
+<body style="margin: 0; padding: 0; background-color: #edf2ee;">
+  <center class="wrapper">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td align="center" style="padding: 0;">
+          <!-- MAIN CONTAINER (680px WIDE) -->
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" class="main-card" style="max-width: 680px; background-color: #ffffff; border-radius: 20px; border: 1px solid #d8e2dc;">
+            
+            <!-- HEADER WITH LUXURY EMERALD GRADIENT -->
+            <tr>
+              <td style="background: linear-gradient(135deg, #092c1e 0%, #135235 100%); padding: 34px 40px;" class="header-padding">
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                  <tr>
+                    <td>
+                      <!-- Brand Logo / Wordmark -->
+                      <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="background-color: #e5c07b; width: 34px; height: 34px; border-radius: 9px; text-align: center; vertical-align: middle;">
+                            <span style="color: #092c1e; font-weight: 900; font-size: 20px; font-family: sans-serif; line-height: 34px;">G</span>
+                          </td>
+                          <td style="padding-left: 14px;">
+                            <span style="color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: 0.6px; font-family: sans-serif;">GREEN FIBRE</span>
+                          </td>
+                        </tr>
+                      </table>
+                      <div style="color: #bfe5d1; font-size: 13px; font-weight: 500; margin-top: 6px; letter-spacing: 0.4px;">
+                        SUPPLY CHAIN & PROCUREMENT DIVISION
+                      </div>
+                    </td>
+                    <td align="right" style="vertical-align: middle;">
+                      <div style="background-color: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.32); color: #ffffff; padding: 6px 14px; border-radius: 24px; font-size: 11px; font-weight: 700; display: inline-block; letter-spacing: 0.6px; text-transform: uppercase;">
+                        Purchase Order
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
 
-    <div class="content">
-      <div class="po-badge">${poNumber} · Date: ${issueDate}</div>
-      <p class="greeting">Dear <strong>${vendorName || 'Valued Vendor'}</strong>,</p>
-      <p style="font-size: 14px; color: #5b6b62; line-height: 1.5;">
-        Please find below the purchase order requirements for the listed items. Kindly confirm acknowledgment and planned delivery timeline.
-      </p>
+            <!-- PO SUMMARY BANNER (PO # & DATE) -->
+            <tr>
+              <td style="background-color: #f6faf7; border-bottom: 1px solid #d8e2dc; padding: 18px 40px;" class="content-padding">
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                  <tr>
+                    <td>
+                      <span style="font-size: 11px; color: #576d61; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">PO Reference</span>
+                      <div style="font-size: 17px; color: #092c1e; font-family: monospace, sans-serif; font-weight: 800; margin-top: 2px;">${poNumber}</div>
+                    </td>
+                    <td align="right">
+                      <span style="font-size: 11px; color: #576d61; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Issue Date</span>
+                      <div style="font-size: 15px; color: #16231d; font-weight: 600; margin-top: 2px;">${issueDate}</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
 
-      <table class="table-box">
-        <thead>
-          <tr>
-            <th>Item / SKU</th>
-            <th class="num">Quantity</th>
-            <th class="num">Unit Rate (₹)</th>
-            <th class="num">Total (₹)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>${sku}</strong></td>
-            <td class="num">${formattedQty} units</td>
-            <td class="num">₹${rate || '—'}</td>
-            <td class="num">₹${formattedTotal}</td>
-          </tr>
-          <tr class="total-row">
-            <td colspan="3">Total Order Value</td>
-            <td class="num">₹${formattedTotal}</td>
-          </tr>
-        </tbody>
-      </table>
+            <!-- CONTENT BODY (EXTRA SPACIOUS) -->
+            <tr>
+              <td style="padding: 34px 40px;" class="content-padding">
+                
+                <!-- GREETING -->
+                <p style="margin: 0 0 10px 0; font-size: 16px; color: #16231d; line-height: 1.4;">
+                  Dear <strong>${vendorName || 'Valued Vendor Partner'}</strong>,
+                </p>
+                <p style="margin: 0 0 26px 0; font-size: 14px; color: #44584e; line-height: 1.65;">
+                  We are pleased to place the following official purchase order. Please review the item specifications, delivery schedule, and commercial terms outlined below:
+                </p>
 
-      <div class="meta-grid">
-        <div class="meta-col">
-          <strong style="color: #5b6b62; display: block; font-size: 11px; text-transform: uppercase;">Payment & Credit Terms</strong>
-          <span>${creditDays} Days Credit</span>
-        </div>
-        <div class="meta-col">
-          <strong style="color: #5b6b62; display: block; font-size: 11px; text-transform: uppercase;">Expected Delivery Date</strong>
-          <span>${delivery || 'As per SLA'}</span>
-        </div>
-      </div>
+                <!-- ══════════════════════════════════════════════════
+                     DESKTOP VIEW: WIDE 4-COLUMN SPECIFICATION TABLE
+                ══════════════════════════════════════════════════ -->
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" class="desktop-only" style="width: 100%; border: 1px solid #d4e0d9; border-radius: 14px; overflow: hidden; margin-bottom: 28px;">
+                  <thead>
+                    <tr style="background-color: #eef5f0; border-bottom: 1px solid #d4e0d9;">
+                      <th style="padding: 16px 20px; font-size: 11px; font-weight: 700; color: #3e5a4b; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; width: 40%;">Item / SKU</th>
+                      <th style="padding: 16px 16px; font-size: 11px; font-weight: 700; color: #3e5a4b; text-transform: uppercase; letter-spacing: 0.6px; text-align: right; width: 20%;">Quantity</th>
+                      <th style="padding: 16px 16px; font-size: 11px; font-weight: 700; color: #3e5a4b; text-transform: uppercase; letter-spacing: 0.6px; text-align: right; width: 20%;">Unit Rate</th>
+                      <th style="padding: 16px 20px; font-size: 11px; font-weight: 700; color: #3e5a4b; text-transform: uppercase; letter-spacing: 0.6px; text-align: right; width: 20%;">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style="background-color: #ffffff; border-bottom: 1px solid #e7eee9;">
+                      <td style="padding: 18px 20px; vertical-align: middle;">
+                        <strong style="color: #092c1e; font-family: monospace, sans-serif; font-size: 15px;">${sku}</strong>
+                        <div style="font-size: 12px; color: #6b7f74; margin-top: 4px;">Standard Finished Goods</div>
+                      </td>
+                      <td style="padding: 18px 16px; text-align: right; vertical-align: middle; font-family: monospace, sans-serif; font-size: 15px; font-weight: 700; color: #16231d;">
+                        ${formattedQty} units
+                      </td>
+                      <td style="padding: 18px 16px; text-align: right; vertical-align: middle; font-family: monospace, sans-serif; font-size: 15px; color: #16231d;">
+                        ₹${formattedRate}
+                      </td>
+                      <td style="padding: 18px 20px; text-align: right; vertical-align: middle; font-family: monospace, sans-serif; font-size: 16px; font-weight: 800; color: #092c1e;">
+                        ₹${formattedTotal}
+                      </td>
+                    </tr>
 
-      ${
-        notes
-          ? `<div class="notes-box"><strong>Special Instructions:</strong><br>${notes}</div>`
-          : ''
-      }
-    </div>
+                    <!-- TOTAL ROW -->
+                    <tr style="background-color: #f5f9f6;">
+                      <td colspan="2" style="padding: 18px 20px; font-size: 14px; font-weight: 700; color: #092c1e;">
+                        Total Order Value:
+                      </td>
+                      <td colspan="2" style="padding: 18px 20px; text-align: right; font-size: 22px; font-weight: 900; color: #092c1e; font-family: monospace, sans-serif;">
+                        ₹${formattedTotal}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
 
-    <div class="footer">
-      <p style="margin: 0 0 6px 0;">Green Fibre Supply Chain & Procurement Division</p>
-      <p style="margin: 0;">This is an automated purchase order notification sent via GreenFibre ERP.</p>
-    </div>
-  </div>
+                <!-- ══════════════════════════════════════════════════
+                     MOBILE VIEW: FULL-WIDTH EXTRA WIDE SPACIOUS CARDS
+                     (Numbers will NEVER wrap and have maximum space!)
+                ══════════════════════════════════════════════════ -->
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" class="mobile-only" style="margin-bottom: 26px; border: 1px solid #d4e0d9; border-radius: 14px; overflow: hidden; background-color: #ffffff; width: 100%;">
+                  <!-- ITEM HEADER -->
+                  <tr>
+                    <td style="background-color: #eef5f0; padding: 16px 20px; border-bottom: 1px solid #d4e0d9;">
+                      <span style="font-size: 10px; font-weight: 700; color: #576d61; text-transform: uppercase; letter-spacing: 0.6px; display: block; margin-bottom: 2px;">Ordered Item SKU</span>
+                      <strong style="color: #092c1e; font-family: monospace, sans-serif; font-size: 17px;">${sku}</strong>
+                    </td>
+                  </tr>
+
+                  <!-- QUANTITY & RATE (WIDE 2-BOX GRID) -->
+                  <tr>
+                    <td style="padding: 18px 16px; border-bottom: 1px solid #eef3f0;">
+                      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                        <tr>
+                          <!-- Quantity Box -->
+                          <td width="48%" style="background-color: #f7faf8; border: 1px solid #dfe9e3; border-radius: 12px; padding: 14px 16px; vertical-align: top;">
+                            <span style="display: block; font-size: 10px; font-weight: 700; color: #6b7f74; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Order Quantity</span>
+                            <span style="font-size: 16px; font-weight: 900; color: #16231d; font-family: monospace, sans-serif;">${formattedQty} <span style="font-size: 12px; font-weight: normal; color: #6b7f74;">units</span></span>
+                          </td>
+                          <td width="4%">&nbsp;</td>
+                          <!-- Rate Box -->
+                          <td width="48%" style="background-color: #f7faf8; border: 1px solid #dfe9e3; border-radius: 12px; padding: 14px 16px; vertical-align: top;">
+                            <span style="display: block; font-size: 10px; font-weight: 700; color: #6b7f74; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Unit Rate</span>
+                            <span style="font-size: 16px; font-weight: 900; color: #092c1e; font-family: monospace, sans-serif;">₹${formattedRate}</span>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- TOTAL ORDER VALUE (EXTRA WIDE PROMINENT BOX) -->
+                  <tr>
+                    <td style="background-color: #f3f8f5; padding: 18px 20px; text-align: center;">
+                      <span style="display: block; font-size: 11px; font-weight: 700; color: #3e5a4b; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px;">Total Order Value</span>
+                      <div style="font-size: 24px; font-weight: 900; color: #092c1e; font-family: monospace, sans-serif;">
+                        ₹${formattedTotal}
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- ══════════════════════════════════════════════════
+                     COMMERCIAL TERMS & TIMELINE (WIDE FULL-WIDTH BOXES)
+                ══════════════════════════════════════════════════ -->
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 26px;">
+                  <tr>
+                    <td width="48%" class="col-stack" style="background-color: #f8faf8; border: 1px solid #dbe6e0; border-radius: 14px; padding: 18px 20px; vertical-align: top;">
+                      <span style="display: block; font-size: 11px; font-weight: 700; color: #576d61; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+                        Payment & Credit Terms
+                      </span>
+                      <strong style="font-size: 15px; color: #092c1e; font-family: sans-serif; display: block;">
+                        ${creditDays} Days Credit
+                      </strong>
+                    </td>
+                    <td width="4%" class="hide-mobile">&nbsp;</td>
+                    <td width="48%" class="col-stack" style="background-color: #f8faf8; border: 1px solid #dbe6e0; border-radius: 14px; padding: 18px 20px; vertical-align: top;">
+                      <span style="display: block; font-size: 11px; font-weight: 700; color: #576d61; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+                        Expected Delivery Date
+                      </span>
+                      <strong style="font-size: 15px; color: #092c1e; font-family: sans-serif; display: block;">
+                        ${delivery || 'Standard Delivery Lead Time'}
+                      </strong>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- SPECIAL INSTRUCTIONS (WIDE BOX) -->
+                ${
+                  notes
+                    ? `
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 28px;">
+                  <tr>
+                    <td style="background-color: #fffbf0; border-left: 5px solid #d4a037; border-top: 1px solid #f2e0b5; border-right: 1px solid #f2e0b5; border-bottom: 1px solid #f2e0b5; border-radius: 12px; padding: 18px 22px;">
+                      <span style="display: block; font-size: 11px; font-weight: 700; color: #7a5813; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px;">
+                        Special Instructions & Quality Specifications
+                      </span>
+                      <p style="margin: 0; font-size: 13px; color: #4f3a10; line-height: 1.65;">
+                        ${notes}
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+                `
+                    : ''
+                }
+
+                <!-- CONFIRMATION / ACKNOWLEDGE BUTTON -->
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 14px; margin-bottom: 8px;">
+                  <tr>
+                    <td align="center">
+                      <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td align="center" style="background-color: #092c1e; border-radius: 12px; padding: 16px 32px; box-shadow: 0 4px 14px rgba(9, 44, 30, 0.22);">
+                            <a href="mailto:procurement@greenfibre.com?subject=Acknowledge%20PO%20${poNumber}%20-%20${vendorName || ''}&body=Dear%20GreenFibre%20Procurement%20Team%2C%0A%0AWe%20hereby%20acknowledge%20and%20accept%20Purchase%20Order%20${poNumber}.%20Our%20planned%20dispatch%20date%20is%3A%20${delivery || ''}.%0A%0ARegards%2C%0A${vendorName || 'Vendor'}"
+                               target="_blank"
+                               style="color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; display: inline-block; font-family: sans-serif; letter-spacing: 0.3px;">
+                              ✓ Reply & Acknowledge Order
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+              </td>
+            </tr>
+
+            <!-- FOOTER -->
+            <tr>
+              <td style="background-color: #f6faf7; border-top: 1px solid #d8e2dc; padding: 26px 40px; text-align: center;" class="content-padding">
+                <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 700; color: #092c1e; letter-spacing: 0.6px; text-transform: uppercase;">
+                  Green Fibre Private Limited · Supply Chain Operations
+                </p>
+                <p style="margin: 0; font-size: 11px; color: #7a8f83; line-height: 1.55;">
+                  This is an official system purchase order generated by GreenFibre ERP. Please retain for your accounting & dispatch documentation.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+          <!-- END MAIN CONTAINER -->
+        </td>
+      </tr>
+    </table>
+  </center>
 </body>
 </html>
 `;
@@ -181,6 +438,124 @@ export async function sendPurchaseOrderEmail({ to, vendorName, poDetails }) {
   if (previewUrl) {
     console.log(`🔗 Ethereal Email Preview URL: ${previewUrl}`);
   }
+
+  return {
+    success: true,
+    messageId: info.messageId,
+    previewUrl: previewUrl || null,
+    recipient: to,
+    vendorName,
+  };
+}
+
+/**
+ * Sends a Day-10 / Production Status Follow-up Reminder email to the vendor (Extra Spacious)
+ */
+export async function sendVendorFollowUpReminderEmail({ to, vendorName, poDetails, daysElapsed = 10, givenDays = 15 }) {
+  if (!to) {
+    throw new Error(`Recipient email is required for vendor reminder (${vendorName || 'Vendor'})`);
+  }
+
+  const transporter = await getTransporter();
+  const {
+    poNumber = 'PO-2026-XXXX',
+    sku = 'GF-CAS-001',
+    quantity = 0,
+    expectedDelivery = 'As scheduled',
+  } = poDetails || {};
+
+  const sender = process.env.SMTP_FROM || '"GreenFibre Procurement" <procurement@greenfibre.com>';
+  const subject = `Urgent Status Update Required: Order ${poNumber} (${sku}) - Day ${daysElapsed} of ${givenDays}`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Status Update - ${poNumber}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #edf2ee; margin: 0; padding: 24px 0; color: #16231d; }
+    .container { max-width: 680px; margin: 0 auto; background: #ffffff; border-radius: 18px; border: 1px solid #d8e2dc; overflow: hidden; box-shadow: 0 8px 28px rgba(0,0,0,0.07); }
+    .header { background: linear-gradient(135deg, #b9791e 0%, #d49533 100%); color: #ffffff; padding: 30px 36px; }
+    .content { padding: 32px 36px; }
+    .alert-box { background: #fbf1df; border-left: 5px solid #b9791e; padding: 18px 22px; border-radius: 12px; font-size: 14px; color: #5f3e0f; margin-bottom: 26px; line-height: 1.6; }
+    .footer { padding: 22px 36px; background: #f6faf7; border-top: 1px solid #d8e2dc; font-size: 11px; color: #7a8f83; text-align: center; }
+    @media only screen and (max-width: 640px) {
+      body { padding: 0 !important; }
+      .container { border-radius: 0 !important; border-left: 0 !important; border-right: 0 !important; border-top: 0 !important; }
+      .header, .content, .footer { padding: 24px 20px !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0; font-size: 21px; font-weight: 800; letter-spacing: 0.3px;">GreenFibre Procurement Check</h1>
+      <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.95;">SLA Delivery Milestone: Day ${daysElapsed} of ${givenDays} Days</p>
+    </div>
+
+    <div class="content">
+      <p style="margin-top: 0; font-size: 16px;">Dear <strong>${vendorName || 'Valued Vendor'}</strong>,</p>
+
+      <div class="alert-box">
+        <strong>Status Update Notice:</strong> It has been <strong>${daysElapsed} days</strong> since Purchase Order <strong>${poNumber}</strong> was issued (allocated timeline: ${givenDays} days).
+      </div>
+
+      <p style="font-size: 14px; color: #334139; line-height: 1.65; margin-bottom: 22px;">
+        Please confirm current production readiness and dispatch schedule to ensure on-time delivery by the promised deadline.
+      </p>
+
+      <!-- Wide Box Grid for Item & Qty -->
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 1px solid #d8e2dc; border-radius: 14px; overflow: hidden; margin-bottom: 26px;">
+        <tr>
+          <td style="background-color: #f7faf8; padding: 14px 20px; border-bottom: 1px solid #d8e2dc;">
+            <span style="font-size: 10px; font-weight: 700; color: #6b7f74; text-transform: uppercase; letter-spacing: 0.5px;">PO Reference</span>
+            <div style="font-size: 16px; font-weight: 800; color: #092c1e; font-family: monospace;">${poNumber} · ${sku}</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 18px 20px;">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td width="48%" style="background-color: #f8faf8; border: 1px solid #dfe9e3; border-radius: 12px; padding: 14px 18px;">
+                  <span style="font-size: 10px; font-weight: 700; color: #6b7f74; text-transform: uppercase; display: block; margin-bottom: 6px;">Quantity</span>
+                  <strong style="font-size: 16px; color: #16231d; font-family: monospace;">${Number(quantity).toLocaleString('en-IN')} units</strong>
+                </td>
+                <td width="4%">&nbsp;</td>
+                <td width="48%" style="background-color: #f8faf8; border: 1px solid #dfe9e3; border-radius: 12px; padding: 14px 18px;">
+                  <span style="font-size: 10px; font-weight: 700; color: #6b7f74; text-transform: uppercase; display: block; margin-bottom: 6px;">Promised Delivery</span>
+                  <strong style="font-size: 15px; color: #b9791e; font-family: monospace;">${expectedDelivery || 'As agreed'}</strong>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-size: 13px; color: #576d61; line-height: 1.6; margin: 0;">
+        Kindly reply to this email with your tracking ID or estimated dispatch date.
+      </p>
+    </div>
+
+    <div class="footer">
+      <p style="margin: 0;">Green Fibre Supply Chain Operations · Automated SLA Follow-up System</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+  const info = await transporter.sendMail({
+    from: sender,
+    to,
+    subject,
+    text: `Status Update Request for PO ${poNumber} (${sku}). Day ${daysElapsed} of ${givenDays} reached. Expected Delivery: ${expectedDelivery}. Please reply with current progress.`,
+    html,
+  });
+
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+  console.log(`✉️ Follow-up reminder email sent to ${to} (Message ID: ${info.messageId})`);
 
   return {
     success: true,

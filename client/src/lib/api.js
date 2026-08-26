@@ -69,6 +69,48 @@ export const api = {
   sendPoToAllVendors: (data) =>
     request('/pos/send-all', { method: 'POST', body: JSON.stringify(data) }),
 
+  // ── Purchase Orders DB & Workflow API ──────────────────────────────────────
+
+  /** Fetch all purchase orders (status: confirmed, delivered, etc.) */
+  getPurchaseOrders: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.sku)    qs.set('sku', params.sku);
+    const query = qs.toString();
+    return request(`/pos${query ? `?${query}` : ''}`);
+  },
+
+  /** Fetch pending purchase orders for Approval Queue */
+  getApprovalQueue: () => request('/pos/approval-queue'),
+
+  /** Create and save PO in database with status 'pending' + send email */
+  createPurchaseOrder: (data) =>
+    request('/pos', { method: 'POST', body: JSON.stringify(data) }),
+
+  /** Confirm/Approve PO (status -> 'confirmed') with verified details */
+  confirmPurchaseOrder: (id, data) =>
+    request(`/pos/${id}/confirm`, { method: 'POST', body: JSON.stringify(data) }),
+
+  /** Reject PO (status -> 'rejected') with reason */
+  rejectPurchaseOrder: (id, data) =>
+    request(`/pos/${id}/reject`, { method: 'POST', body: JSON.stringify(data) }),
+
+  /** Manually trigger 10-day cron follow-up check */
+  runFollowUpCron: () =>
+    request('/pos/run-followup-cron', { method: 'POST' }),
+
+  /** Fetch confirmed orders due for delivery arrival check */
+  getPendingDeliveries: () =>
+    request('/pos/pending-deliveries'),
+
+  /** Record delivery arrival (on time vs late in days) */
+  recordDeliveryArrival: (id, data) =>
+    request(`/pos/${id}/record-delivery`, { method: 'POST', body: JSON.stringify(data) }),
+
+  /** Fetch vendor performance scoreboard grouped by SKU and Vendor */
+  getVendorPerformanceScoreboard: () =>
+    request('/pos/vendor-scoreboard'),
+
   // ── Channel Orders API ──────────────────────────────────────────────────────
 
   /**
