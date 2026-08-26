@@ -140,6 +140,9 @@ export const api = {
 
   decidePriceChange: (id, action) =>
     request(`/price-changes/${id}/decide`, { method: 'POST', body: JSON.stringify({ action }) }),
+
+  withdrawPriceChange: (id) =>
+    request(`/price-changes/${id}/decide`, { method: 'POST', body: JSON.stringify({ action: 'withdraw' }) }),
 };
 
 export const createPriceChangeRequest = (payload) =>
@@ -152,4 +155,8 @@ export const getPriceChanges = (status) => {
 
 export const decidePriceChange = (id, action) =>
   request(`/price-changes/${id}/decide`, { method: 'POST', body: JSON.stringify({ action }) });
+
+export const withdrawPriceChange = (id) =>
+  request(`/price-changes/${id}/decide`, { method: 'POST', body: JSON.stringify({ action: 'withdraw' }) });
+
 

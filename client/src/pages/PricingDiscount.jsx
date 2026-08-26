@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Tags, SlidersHorizontal, ListChecks, History, ChevronRight,
-  CheckCircle2, XCircle, Clock, TrendingDown, TrendingUp, Search, ExternalLink
+  CheckCircle2, XCircle, Clock, TrendingDown, TrendingUp, Search, ExternalLink,
+  Ban, Undo2
 } from 'lucide-react';
 import { UNIFIED_PRODUCTS, marginPct } from '../lib/productsData';
 import {
   createPriceChangeRequest,
   getPriceChanges,
-  decidePriceChange
+  decidePriceChange,
+  withdrawPriceChange
 } from '../lib/api';
 
 /* ============================================================
@@ -355,11 +357,14 @@ function ApprovalStatusPill({ status }) {
   if (status === 'rejected') {
     return <span className="badge-danger flex items-center gap-1"><XCircle size={14} /> Rejected</span>;
   }
+  if (status === 'withdrawn') {
+    return <span className="badge flex items-center gap-1 text-ink-muted bg-gray-100"><Ban size={14} /> Withdrawn</span>;
+  }
   return <span className="badge-warn flex items-center gap-1"><Clock size={14} /> Waiting for approval</span>;
 }
 
 /* ---------------- Price Change Approval Queue ---------------- */
-function PriceApprovalQueue({ items = [], isLoading = false }) {
+function PriceApprovalQueue({ items = [], isLoading = false, onWithdraw, withdrawingId = null }) {
   return (
     <div className="flex flex-col gap-4 animate-enter">
       {isLoading ? (
@@ -372,6 +377,8 @@ function PriceApprovalQueue({ items = [], isLoading = false }) {
           const toPrice = Number(item.toPrice ?? item.to ?? 0);
           const margin = Number(item.marginAfterPct ?? item.marginAfter ?? 0);
           const pct = fromPrice > 0 ? (((toPrice - fromPrice) / fromPrice) * 100).toFixed(1) : 0;
+          const isPending = item.status === 'pending';
+          const isWithdrawing = withdrawingId === item.id;
 
           return (
             <div key={item.id} className="card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -403,8 +410,19 @@ function PriceApprovalQueue({ items = [], isLoading = false }) {
                 </div>
               </div>
 
-              <div className="shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 <ApprovalStatusPill status={item.status} />
+                {isPending && onWithdraw && (
+                  <button
+                    type="button"
+                    className="btn-outline text-xs px-2.5 py-1.5 flex items-center gap-1 text-red hover:bg-red-50 transition-colors"
+                    onClick={() => onWithdraw(item.id)}
+                    disabled={isWithdrawing}
+                    title="Withdraw price change request"
+                  >
+                    <Undo2 size={13} /> {isWithdrawing ? 'Withdrawing…' : 'Withdraw'}
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -454,6 +472,7 @@ function PriceHistory({ rows = [], isLoading = false }) {
                 : r.by || r.requestedBy || 'Team';
 
               const isApproved = r.status === 'approved';
+              const isWithdrawn = r.status === 'withdrawn';
 
               return (
                 <tr key={r.id || i}>
@@ -474,7 +493,7 @@ function PriceHistory({ rows = [], isLoading = false }) {
                     )}
                   </td>
                   <td>
-                    <span className={isApproved ? 'badge-ok capitalize' : 'badge-danger capitalize'}>
+                    <span className={isApproved ? 'badge-ok capitalize' : isWithdrawn ? 'badge capitalize' : 'badge-danger capitalize'}>
                       {r.status || 'approved'}
                     </span>
                   </td>
@@ -497,6 +516,7 @@ export default function PricingDiscounts() {
   const [priceOverrides, setPriceOverrides] = useState({});
   const [loadingApprovals, setLoadingApprovals] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [withdrawingId, setWithdrawingId] = useState(null);
 
   // Fetch approved price overrides to apply to Channel Pricing
   const fetchApprovedOverrides = useCallback(async () => {
@@ -516,50 +536,71 @@ export default function PricingDiscounts() {
     }
   }, []);
 
-  // Fetch all price changes for Approval Queue (showing pending, approved, rejected)
+  // Fetch all price changes for Approval Queue (showing pending, approved, rejected, withdrawn)
   const fetchApprovalRequests = useCallback(async () => {
     try {
-      setLoadingApprovals(true);
       const data = await getPriceChanges();
       setApprovalRequests(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('[fetchApprovalRequests error]', err);
-    } finally {
-      setLoadingApprovals(false);
     }
   }, []);
 
   // Fetch all decided price changes for History
   const fetchPriceHistory = useCallback(async () => {
     try {
-      setLoadingHistory(true);
       const data = await getPriceChanges();
       if (Array.isArray(data)) {
         setPriceHistory(data.filter(item => item.status !== 'pending'));
       }
     } catch (err) {
       console.error('[fetchPriceHistory error]', err);
-    } finally {
-      setLoadingHistory(false);
     }
   }, []);
 
-  // On mount: fetch approved overrides and approval requests
+  // Sync data automatically on mount, on tab change, periodically (every 4s), and when window regains focus
   useEffect(() => {
-    fetchApprovedOverrides();
-    fetchApprovalRequests();
-  }, [fetchApprovedOverrides, fetchApprovalRequests]);
-
-  // When tab changes, fetch relevant data
-  useEffect(() => {
-    if (activeTab === 'approval') {
-      fetchApprovalRequests();
-    } else if (activeTab === 'history') {
-      fetchPriceHistory();
-    } else if (activeTab === 'channel') {
+    const syncAll = () => {
       fetchApprovedOverrides();
+      if (activeTab === 'approval') fetchApprovalRequests();
+      if (activeTab === 'history') fetchPriceHistory();
+      if (activeTab === 'channel') fetchApprovedOverrides();
+    };
+
+    // Immediate sync
+    syncAll();
+
+    // Auto-polling interval every 4 seconds for real-time reflection of email decisions
+    const interval = setInterval(syncAll, 4000);
+
+    // Sync on window focus / visibility change
+    const onFocus = () => syncAll();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') syncAll();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [activeTab, fetchApprovedOverrides, fetchApprovalRequests, fetchPriceHistory]);
+
+  const handleWithdraw = async (id) => {
+    try {
+      setWithdrawingId(id);
+      await withdrawPriceChange(id);
+      await fetchApprovalRequests();
+      await fetchApprovedOverrides();
+    } catch (err) {
+      console.error('[handleWithdraw error]', err);
+    } finally {
+      setWithdrawingId(null);
     }
-  }, [activeTab, fetchApprovalRequests, fetchPriceHistory, fetchApprovedOverrides]);
+  };
 
   const pendingCount = approvalRequests.filter(item => item.status === 'pending').length;
 
@@ -607,15 +648,18 @@ export default function PricingDiscounts() {
       {activeTab === 'approval' && (
         <PriceApprovalQueue
           items={approvalRequests}
-          isLoading={loadingApprovals}
+          isLoading={loadingApprovals && approvalRequests.length === 0}
+          onWithdraw={handleWithdraw}
+          withdrawingId={withdrawingId}
         />
       )}
       {activeTab === 'history' && (
         <PriceHistory
           rows={priceHistory}
-          isLoading={loadingHistory}
+          isLoading={loadingHistory && priceHistory.length === 0}
         />
       )}
     </div>
   );
-}
+}
+

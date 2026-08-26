@@ -119,6 +119,9 @@ export async function decideByToken(req, res) {
 
     const [row] = await db.select().from(priceChanges).where(eq(priceChanges.id, Number(id)));
     if (!row) return res.status(404).send(htmlPage('Not found', 'This price change no longer exists.', 'red'));
+    if (row.status === 'withdrawn') {
+      return res.status(200).send(htmlPage('Request Withdrawn', 'This price change request was withdrawn and can no longer be decided.', 'red'));
+    }
     if (row.status !== 'pending') {
       return res.status(200).send(htmlPage('Already decided', `This request was already ${row.status}.`, row.status === 'approved' ? 'green' : 'red'));
     }
@@ -144,21 +147,21 @@ export async function decideByToken(req, res) {
   }
 }
 
-// POST /api/price-changes/:id/decide   { action: 'approve' | 'reject' }  (clicked from dashboard)
+// POST /api/price-changes/:id/decide   { action: 'approve' | 'reject' | 'withdraw' }  (clicked from dashboard)
 export async function decideFromDashboard(req, res) {
   try {
     await ensureTable();
     const { id } = req.params;
     const { action } = req.body;
-    if (!['approve', 'reject'].includes(action)) {
-      return res.status(400).json({ message: 'action must be "approve" or "reject"' });
+    if (!['approve', 'reject', 'withdraw'].includes(action)) {
+      return res.status(400).json({ message: 'action must be "approve", "reject", or "withdraw"' });
     }
 
     const [row] = await db.select().from(priceChanges).where(eq(priceChanges.id, Number(id)));
     if (!row) return res.status(404).json({ message: 'Price change not found' });
     if (row.status !== 'pending') return res.status(409).json({ message: `Already ${row.status}` });
 
-    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    const newStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'withdrawn';
     const [updated] = await db.update(priceChanges).set({
       status: newStatus,
       decidedAt: new Date(),
@@ -171,3 +174,4 @@ export async function decideFromDashboard(req, res) {
     res.status(500).json({ message: 'Failed to decide price change', error: err.message });
   }
 }
+
