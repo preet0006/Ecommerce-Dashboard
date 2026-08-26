@@ -1,18 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Loader2, ChevronDown, Check } from 'lucide-react';
+import { Search, Plus, Loader2, ChevronDown, Check, Sparkles } from 'lucide-react';
 import { api } from '../../lib/api';
 
-/* ══════════════════════════════════════════════════════════════
-   VENDOR CODE COMBOBOX
-   – Fetches existing codes from /api/vendors/codes
-   – Shows them in a styled dropdown
-   – Has an "Add New Vendor" option at top
-   – When existing code selected → loads that vendor's full data
-     and fires onSelectExisting(vendor)
-   – When "Add New" selected → fires onAddNew()
-   – When typing a new code manually → just updates the value
-══════════════════════════════════════════════════════════════ */
-export default function VendorCodeCombobox({ value, onChange, onSelectExisting, onAddNew, disabled }) {
+export default function VendorCodeCombobox({ value, onChange, onSelectExisting, onAddNew, isEdit }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [codes, setCodes] = useState([]);
@@ -24,7 +14,7 @@ export default function VendorCodeCombobox({ value, onChange, onSelectExisting, 
     setLoading(true);
     api.getVendorCodes()
       .then(setCodes)
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -42,6 +32,10 @@ export default function VendorCodeCombobox({ value, onChange, onSelectExisting, 
       c.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const exactMatch = codes.find(
+    (c) => c.vendorCode.toUpperCase() === (value || search).trim().toUpperCase()
+  );
+
   async function handleSelectExisting(codeItem) {
     setOpen(false);
     setSearch('');
@@ -56,124 +50,95 @@ export default function VendorCodeCombobox({ value, onChange, onSelectExisting, 
     }
   }
 
-  function handleAddNew() {
+  function handleAddNewCode() {
     setOpen(false);
     setSearch('');
     onAddNew();
   }
 
   return (
-    <div ref={wrapRef} style={{ position: 'relative' }}>
-      <div style={{ position: 'relative' }}>
+    <div ref={wrapRef} className="relative w-full">
+      <div className="relative">
         <input
-          className="input pr-10"
-          placeholder={fetching ? 'Loading…' : 'e.g. V-004 or select existing'}
-          value={fetching ? '' : value}
-          disabled={disabled || fetching}
+          className="input pr-10 font-mono font-semibold"
+          placeholder={fetching ? 'Loading vendor…' : 'e.g. V-003, V-NEW, or type any code'}
+          value={fetching ? '' : value || ''}
           onChange={(e) => {
-            onChange(e.target.value.toUpperCase());
-            setSearch(e.target.value);
+            const rawVal = e.target.value.toUpperCase();
+            onChange(rawVal);
+            setSearch(rawVal);
             setOpen(true);
           }}
-          onFocus={() => { setSearch(''); setOpen(true); }}
+          onFocus={() => {
+            setSearch(value || '');
+            setOpen(true);
+          }}
           autoComplete="off"
           required
         />
         {fetching ? (
-          <Loader2 size={15} className="animate-spin"
-            style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-ink-muted)' }} />
+          <Loader2
+            size={15}
+            className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted"
+          />
         ) : (
           <button
             type="button"
             tabIndex={-1}
             onClick={() => setOpen((o) => !o)}
-            style={{
-              position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-              background: 'none', border: 'none', cursor: 'pointer', padding: 2,
-              color: 'var(--color-ink-muted)',
-            }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-ink-muted hover:text-ink cursor-pointer"
           >
-            <ChevronDown size={16} style={{ transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+            <ChevronDown
+              size={15}
+              className={`transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+            />
           </button>
         )}
       </div>
 
       {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-md)',
-          boxShadow: 'var(--shadow-card)',
-          zIndex: 100,
-          overflow: 'hidden',
-          maxHeight: 280,
-          display: 'flex',
-          flexDirection: 'column',
-        }}>
-          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-border)' }}>
-            <div style={{ position: 'relative' }}>
-              <Search size={13} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-ink-muted)' }} />
-              <input
-                autoFocus
-                className="input"
-                style={{ paddingLeft: 28, height: 32, fontSize: 13 }}
-                placeholder="Search codes or names…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          </div>
+        <div className="absolute top-[calc(100%+4px)] left-0 right-0 z-50 bg-surface border border-border rounded-xl shadow-xl overflow-hidden max-h-72 flex flex-col animate-enter">
+          {/* Quick Add Option */}
+          <button
+            type="button"
+            onClick={handleAddNewCode}
+            className="flex items-center gap-2 w-full px-3.5 py-2.5 text-xs font-semibold text-primary bg-primary-soft/50 hover:bg-primary hover:text-white transition-colors border-b border-border text-left"
+          >
+            <Plus size={13} />
+            <span>Create As New Vendor Code</span>
+          </button>
 
-          <div style={{ overflowY: 'auto', flex: 1 }}>
-            <button
-              type="button"
-              onClick={handleAddNew}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                width: '100%', padding: '10px 14px',
-                background: 'none', border: 'none', cursor: 'pointer',
-                textAlign: 'left', fontSize: 13,
-                borderBottom: '1px solid var(--color-border)',
-                color: 'var(--color-primary-strong)',
-                fontWeight: 600,
-              }}
-            >
-              <Plus size={14} />
-              Add New Vendor
-            </button>
-
+          {/* Existing Codes List */}
+          <div className="overflow-y-auto flex-1 divide-y divide-border/60">
             {loading ? (
-              <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--color-ink-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Loader2 size={13} className="animate-spin" /> Loading codes…
+              <div className="p-3 text-xs text-ink-muted flex items-center gap-2">
+                <Loader2 size={13} className="animate-spin text-primary" /> Loading existing codes…
               </div>
             ) : filtered.length === 0 ? (
-              <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--color-ink-muted)' }}>
-                {codes.length === 0 ? 'No vendors yet — add the first one!' : 'No codes match your search.'}
+              <div className="p-3 text-xs text-ink-muted flex flex-col gap-1">
+                <span>No existing vendor matches <strong>"{search}"</strong>.</span>
+                <span className="text-[11px] text-primary font-medium">✓ You are creating a new vendor with this code.</span>
               </div>
             ) : (
-              filtered.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => handleSelectExisting(c)}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    width: '100%', padding: '9px 14px',
-                    background: value === c.vendorCode ? 'var(--color-primary-soft)' : 'none',
-                    border: 'none', cursor: 'pointer', textAlign: 'left',
-                  }}
-                >
-                  <span style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color: 'var(--color-ink)' }}>
-                      {c.vendorCode}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--color-ink-muted)' }}>{c.name}</span>
-                  </span>
-                  {value === c.vendorCode && <Check size={13} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />}
-                </button>
-              ))
+              filtered.map((c) => {
+                const isSelected = value === c.vendorCode;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => handleSelectExisting(c)}
+                    className={`w-full px-3.5 py-2 text-xs flex items-center justify-between text-left transition-colors hover:bg-surface-raised ${
+                      isSelected ? 'bg-primary-soft font-semibold text-primary' : 'text-ink'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-mono font-bold text-ink">{c.vendorCode}</div>
+                      <div className="text-[11px] text-ink-muted">{c.name}</div>
+                    </div>
+                    {isSelected && <Check size={14} className="text-primary shrink-0" />}
+                  </button>
+                );
+              })
             )}
           </div>
         </div>

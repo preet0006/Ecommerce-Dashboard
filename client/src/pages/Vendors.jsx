@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, CheckCircle2 } from 'lucide-react';
 
 // Page-level components
 import VendorList from '../components/vendors/VendorList';
@@ -14,16 +14,40 @@ export default function VendorMaster() {
   const [activeTab, setActiveTab] = useState('list');
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [toast, setToast] = useState(null);
 
-  const goEdit = (vendor) => { setSelectedVendor(vendor); setActiveTab('edit'); };
-  const goAdd = () => { setSelectedVendor(null); setActiveTab('edit'); };
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const goEdit = (vendor) => {
+    setSelectedVendor(vendor);
+    setActiveTab('edit');
+  };
+
+  const goAdd = () => {
+    setSelectedVendor(null);
+    setActiveTab('edit');
+  };
 
   const handleSaved = () => {
     setRefreshKey((k) => k + 1);
+    setSelectedVendor(null);
+    setActiveTab('list');
+    showToast('Vendor master database updated successfully.');
   };
 
   return (
     <div className="min-h-screen p-4 sm:p-6 bg-bg transition-colors">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 p-3 rounded-xl bg-surface border border-primary/30 shadow-2xl text-primary font-semibold text-xs flex items-center gap-2 animate-enter">
+          <CheckCircle2 size={16} />
+          <span>{toast}</span>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 text-xs sm:text-sm text-ink-muted mb-1">
         <span>Green Fibre</span> <ChevronRight size={13} /> <span className="text-ink font-medium">Vendor Master</span>
       </div>
@@ -36,13 +60,18 @@ export default function VendorMaster() {
           return (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); if (tab.id !== 'edit') setSelectedVendor(null); }}
+              onClick={() => {
+                setActiveTab(tab.id);
+                if (tab.id !== 'edit') setSelectedVendor(null);
+              }}
               className={`whitespace-nowrap text-xs sm:text-sm ${
-                active ? 'sidebar-link-active !rounded-b-none' : 'sidebar-link !rounded-b-none'
+                active ? 'sidebar-link-active !rounded-b-none font-bold' : 'sidebar-link !rounded-b-none'
               }`}
-              style={active
-                ? { borderBottom: '2px solid var(--color-primary)' }
-                : { borderBottom: '2px solid transparent' }}
+              style={
+                active
+                  ? { borderBottom: '2px solid var(--color-primary)' }
+                  : { borderBottom: '2px solid transparent' }
+              }
             >
               <Icon size={15} /> {tab.label}
             </button>
@@ -55,14 +84,20 @@ export default function VendorMaster() {
           key={refreshKey}
           onSelect={goEdit}
           onAdd={goAdd}
-          onDeleted={() => setRefreshKey((k) => k + 1)}
+          onDeleted={() => {
+            setRefreshKey((k) => k + 1);
+            showToast('Vendor deleted.');
+          }}
         />
       )}
       {activeTab === 'edit' && (
         <VendorForm
           vendor={selectedVendor}
           onSaved={handleSaved}
-          onCancel={() => { setActiveTab('list'); setSelectedVendor(null); }}
+          onCancel={() => {
+            setActiveTab('list');
+            setSelectedVendor(null);
+          }}
         />
       )}
       {activeTab === 'history' && <QuotationHistory quotes={MOCK_QUOTES} />}
