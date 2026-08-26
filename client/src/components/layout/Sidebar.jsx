@@ -19,7 +19,7 @@ import {
 import { NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext";
 import { logout } from "../../lib/api";
-import greenfibreLogo from "../../assets/greenfibre-logo.png";
+import greenfibreLeaves from "../../assets/greenfibre-leaves.png";
 
 export const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
@@ -47,11 +47,11 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="flex items-center justify-between px-2 mb-6 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-1 border border-border/80 shadow-xs overflow-hidden shrink-0">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-2 border border-border/80 shadow-xs overflow-hidden shrink-0">
             <img
-              src={greenfibreLogo}
-              alt="Green Fibre Leaves Emblem"
-              className="h-full w-full object-cover object-top scale-[1.5] -translate-y-[6%]"
+              src={greenfibreLeaves}
+              alt="Green Fibre Leaves"
+              className="h-full w-full object-contain"
             />
           </div>
           <div className="flex flex-col">
@@ -178,11 +178,11 @@ export function MobileSidebarDrawer({ open, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-1 mb-5 shrink-0 border-b border-border/60 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-1 border border-border/80 shadow-xs overflow-hidden shrink-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-2 border border-border/80 shadow-xs overflow-hidden shrink-0">
               <img
-                src={greenfibreLogo}
-                alt="Green Fibre Leaves Emblem"
-                className="h-full w-full object-cover object-top scale-[1.5] -translate-y-[6%]"
+                src={greenfibreLeaves}
+                alt="Green Fibre Leaves"
+                className="h-full w-full object-contain"
               />
             </div>
             <div className="flex flex-col">

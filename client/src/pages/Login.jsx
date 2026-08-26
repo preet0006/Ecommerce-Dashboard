@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { login as loginApi } from '../lib/api';
-import greenfibreLogo from '../assets/greenfibre-logo.png';
+import greenfibreLeaves from '../assets/greenfibre-leaves.png';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -44,20 +44,20 @@ export default function Login() {
         style={{ background: 'linear-gradient(135deg, #092c1e 0%, #1F6E4C 55%, #3a9b6f 100%)' }}
       >
         {/* Large watermark leaves emblem in background */}
-        <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-[520px] h-[520px] pointer-events-none select-none flex items-center justify-center opacity-[0.09] filter brightness-200 overflow-hidden">
+        <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-[520px] h-[520px] pointer-events-none select-none flex items-center justify-center opacity-[0.09] filter brightness-200">
           <img
-            src={greenfibreLogo}
+            src={greenfibreLeaves}
             alt=""
-            className="w-full h-full object-cover object-top scale-[1.35] -translate-y-[6%]"
+            className="w-full h-full object-contain"
           />
         </div>
 
         {/* Top-Right Shaded Watermark Badge */}
-        <div className="absolute right-8 top-10 w-40 h-40 rounded-full bg-white/[0.08] border border-white/15 p-6 flex items-center justify-center pointer-events-none select-none shadow-2xl backdrop-blur-xs overflow-hidden">
+        <div className="absolute right-8 top-10 w-40 h-40 rounded-full bg-white/[0.08] border border-white/15 p-7 flex items-center justify-center pointer-events-none select-none shadow-2xl backdrop-blur-xs">
           <img
-            src={greenfibreLogo}
+            src={greenfibreLeaves}
             alt=""
-            className="w-full h-full object-cover object-top scale-[1.45] -translate-y-[6%] opacity-40 filter drop-shadow"
+            className="w-full h-full object-contain opacity-45 filter drop-shadow-md"
           />
         </div>
 
@@ -72,11 +72,11 @@ export default function Login() {
 
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
           <div className="flex items-center gap-3 mb-8">
-            <div className="h-12 w-12 rounded-2xl bg-white p-1.5 shadow-xl flex items-center justify-center overflow-hidden shrink-0">
+            <div className="h-12 w-12 rounded-2xl bg-white p-2 shadow-xl flex items-center justify-center overflow-hidden shrink-0">
               <img
-                src={greenfibreLogo}
-                alt="Green Fibre Leaves Emblem"
-                className="h-full w-full object-cover object-top scale-[1.5] -translate-y-[6%]"
+                src={greenfibreLeaves}
+                alt="Green Fibre Leaves"
+                className="h-full w-full object-contain"
               />
             </div>
             <div className="flex flex-col">
@@ -102,11 +102,11 @@ export default function Login() {
       <div className="w-full lg:w-1/2 flex items-center justify-center px-6 sm:px-8 py-12 bg-surface">
         <div className="w-full max-w-sm">
           <div className="flex items-center gap-3 mb-6">
-            <div className="h-11 w-11 rounded-xl bg-white p-1 border border-border/80 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+            <div className="h-11 w-11 rounded-xl bg-white p-2 border border-border/80 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
               <img
-                src={greenfibreLogo}
-                alt="Green Fibre Leaves Emblem"
-                className="h-full w-full object-cover object-top scale-[1.5] -translate-y-[6%]"
+                src={greenfibreLeaves}
+                alt="Green Fibre Leaves"
+                className="h-full w-full object-contain"
               />
             </div>
             <div className="flex flex-col">
