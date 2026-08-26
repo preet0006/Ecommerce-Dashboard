@@ -109,3 +109,24 @@ export const products = pgTable('products', {
   updatedAt:              timestamp('updated_at').defaultNow().notNull(),
 });
 
+// ─── Price Changes (email + dashboard approval) ──────────────────────────────
+export const priceChanges = pgTable('price_changes', {
+  id:             serial('id').primaryKey(),
+  sku:            varchar('sku', { length: 100 }).notNull(),
+  productName:    varchar('product_name', { length: 200 }),
+  channel:        varchar('channel', { length: 20 }).notNull(),        // 'amazon' | 'flipkart' | 'website'
+  fromPrice:      numeric('from_price', { precision: 10, scale: 2 }).notNull(),
+  toPrice:        numeric('to_price', { precision: 10, scale: 2 }).notNull(),
+  marginAfterPct: numeric('margin_after_pct', { precision: 5, scale: 2 }),
+  requestedBy:    varchar('requested_by', { length: 100 }).default('Team'),
+  status:         varchar('status', { length: 20 }).default('pending').notNull(), // 'pending' | 'approved' | 'rejected'
+  approvalToken:  varchar('approval_token', { length: 64 }),
+  tokenExpiresAt: timestamp('token_expires_at'),
+  decidedAt:      timestamp('decided_at'),
+  decidedVia:     varchar('decided_via', { length: 20 }),               // 'email' | 'dashboard'
+  emailStatus:    varchar('email_status', { length: 20 }).default('sent'),
+  emailPreviewUrl: text('email_preview_url'),
+  createdAt:      timestamp('created_at').defaultNow().notNull(),
+});
+
+

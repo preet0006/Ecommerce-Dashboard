@@ -1,27 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Tags, SlidersHorizontal, ListChecks, History, ChevronRight,
-  CheckCircle2, XCircle, Clock, TrendingDown, TrendingUp, Search
+  CheckCircle2, XCircle, Clock, TrendingDown, TrendingUp, Search, ExternalLink
 } from 'lucide-react';
 import { UNIFIED_PRODUCTS, marginPct } from '../lib/productsData';
+import {
+  createPriceChangeRequest,
+  getPriceChanges,
+  decidePriceChange
+} from '../lib/api';
 
 /* ============================================================
    PRICING & DISCOUNTS
-   Uses unified product schema (UNIFIED_PRODUCTS)
+   Uses unified product schema + Real Email/Dashboard Price Change Engine
    ============================================================ */
-
-const MOCK_PRICE_APPROVALS = [
-  { id: 'PC-2026-091', sku: 'GF-BWL-014', channel: 'Amazon', from: 549, to: 469, marginAfter: 18.6, requestedBy: 'Marketing Team' },
-  { id: 'PC-2026-090', sku: 'GF-PET-002', channel: 'Website', from: 279, to: 249, marginAfter: 38.2, requestedBy: 'Sales Team' },
-  { id: 'PC-2026-089', sku: 'GF-CAS-005', channel: 'Flipkart', from: 1379, to: 1299, marginAfter: 13.8, requestedBy: 'Promotions Lead' },
-];
-
-const MOCK_PRICE_HISTORY = [
-  { date: '2026-08-18', sku: 'GF-CAS-001', channel: 'Amazon', from: 949, to: 899, by: 'A. Sharma' },
-  { date: '2026-08-05', sku: 'GF-PET-002', channel: 'Flipkart', from: 259, to: 239, by: 'R. Iyer' },
-  { date: '2026-07-22', sku: 'GF-CAS-005', channel: 'Website', from: 1499, to: 1449, by: 'A. Sharma' },
-  { date: '2026-07-10', sku: 'GF-BWL-014', channel: 'Amazon', from: 599, to: 549, by: 'System (rule)' },
-];
 
 const TABS = [
   { id: 'channel', label: 'Channel Pricing', icon: Tags },
@@ -37,7 +29,7 @@ function marginBadge(pct) {
 }
 
 /* ---------------- Channel Pricing ---------------- */
-function ChannelPricing({ rows }) {
+function ChannelPricing({ rows, priceOverrides = {} }) {
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -83,18 +75,28 @@ function ChannelPricing({ rows }) {
           </thead>
           <tbody>
             {filtered.map((r) => {
-              const amazonPrice = r.amazon ?? r.sellingPrice;
-              const flipkartPrice = r.flipkart ?? r.sellingPrice;
-              const websitePrice = r.website ?? r.sellingPrice;
+              const amazonPrice = priceOverrides[`${r.sku}-amazon`] ?? (r.amazon ?? r.sellingPrice);
+              const flipkartPrice = priceOverrides[`${r.sku}-flipkart`] ?? (r.flipkart ?? r.sellingPrice);
+              const websitePrice = priceOverrides[`${r.sku}-website`] ?? (r.website ?? r.sellingPrice);
               const cost = r.landedCost ?? r.costPrice ?? 0;
+
+              const hasAmazonOverride = priceOverrides[`${r.sku}-amazon`] != null;
+              const hasFlipkartOverride = priceOverrides[`${r.sku}-flipkart`] != null;
+              const hasWebsiteOverride = priceOverrides[`${r.sku}-website`] != null;
 
               return (
                 <tr key={r.sku}>
                   <td className="font-mono text-xs text-ink-muted">{r.sku}</td>
                   <td className="font-medium">{r.name}</td>
-                  <td className="text-right font-mono">₹{amazonPrice}</td>
-                  <td className="text-right font-mono">₹{flipkartPrice}</td>
-                  <td className="text-right font-mono">₹{websitePrice}</td>
+                  <td className={`text-right font-mono ${hasAmazonOverride ? 'text-primary font-bold' : ''}`}>
+                    ₹{amazonPrice}
+                  </td>
+                  <td className={`text-right font-mono ${hasFlipkartOverride ? 'text-primary font-bold' : ''}`}>
+                    ₹{flipkartPrice}
+                  </td>
+                  <td className={`text-right font-mono ${hasWebsiteOverride ? 'text-primary font-bold' : ''}`}>
+                    ₹{websitePrice}
+                  </td>
                   <td>{marginBadge(marginPct(amazonPrice, cost))}</td>
                   <td>{marginBadge(marginPct(flipkartPrice, cost))}</td>
                   <td>{marginBadge(marginPct(websitePrice, cost))}</td>
@@ -208,11 +210,13 @@ function SkuSelect({ rows, selectedSku, onSelect }) {
 }
 
 /* ---------------- Discount Simulator ---------------- */
-function DiscountSimulator({ rows }) {
+function DiscountSimulator({ rows, onSubmitted }) {
   const [selectedSku, setSelectedSku] = useState(rows[0]?.sku || 'GF-CAS-001');
   const [channel, setChannel] = useState('amazon');
   const [discountPct, setDiscountPct] = useState(10);
   const [expectedVolume, setExpectedVolume] = useState(300);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitState, setSubmitState] = useState(null); // 'success' | 'error' | null
 
   const product = rows.find(r => r.sku === selectedSku) || rows[0];
   const currentPrice = product ? (product[channel] ?? product.sellingPrice ?? 0) : 0;
@@ -220,6 +224,31 @@ function DiscountSimulator({ rows }) {
   const newPrice = Math.round(currentPrice * (1 - discountPct / 100));
   const marginAfter = marginPct(newPrice, cost);
   const monthlyProfit = (newPrice - cost) * Number(expectedVolume || 0);
+
+  const handleSendForApproval = async () => {
+    try {
+      setIsSubmitting(true);
+      setSubmitState(null);
+      await createPriceChangeRequest({
+        sku: product.sku,
+        productName: product.name,
+        channel,
+        fromPrice: currentPrice,
+        toPrice: newPrice,
+        marginAfterPct: Number(marginAfter.toFixed(2)),
+        requestedBy: 'Discount Simulator',
+      });
+      setSubmitState('success');
+      if (onSubmitted) onSubmitted();
+      setTimeout(() => setSubmitState(null), 4000);
+    } catch (err) {
+      console.error('[handleSendForApproval error]', err);
+      setSubmitState('error');
+      setTimeout(() => setSubmitState(null), 4000);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-enter">
@@ -285,99 +314,275 @@ function DiscountSimulator({ rows }) {
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <button className="btn-primary">Send for Approval</button>
-          <button className="btn-outline" onClick={() => setDiscountPct(10)}>Reset</button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="btn-primary flex items-center gap-2"
+            onClick={handleSendForApproval}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              'Sending Approval Request…'
+            ) : submitState === 'success' ? (
+              <>
+                <CheckCircle2 size={16} /> Sent for Approval ✓
+              </>
+            ) : submitState === 'error' ? (
+              'Failed to Send — Retry'
+            ) : (
+              'Send for Approval'
+            )}
+          </button>
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => setDiscountPct(10)}
+            disabled={isSubmitting}
+          >
+            Reset
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ---------------- Price Change Approval ---------------- */
-function PriceApprovalQueue({ items }) {
-  const [decisions, setDecisions] = useState({});
-  const decide = (id, decision) => setDecisions((d) => ({ ...d, [id]: decision }));
+/* ---------------- Price Change Approval Queue ---------------- */
+function PriceApprovalQueue({ items = [], onDecided, isLoading = false }) {
+  const [decidingId, setDecidingId] = useState(null);
+
+  const handleDecision = async (id, action) => {
+    try {
+      setDecidingId(id);
+      await decidePriceChange(id, action);
+      if (onDecided) onDecided();
+    } catch (err) {
+      console.error('[handleDecision error]', err);
+    } finally {
+      setDecidingId(null);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4 animate-enter">
-      {items.length === 0 && <div className="card p-8 text-center text-ink-muted">No price changes waiting for approval.</div>}
-      {items.map((item) => (
-        <div key={item.id} className="card p-5 flex items-center justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-xs text-ink-muted">{item.id}</span>
-              <span className="font-medium">{item.sku}</span>
-              <span className="badge">{item.channel}</span>
-            </div>
-            <div className="flex items-center gap-4 text-sm text-ink-muted">
-              <span>₹{item.from} → ₹{item.to}</span>
-              <span className="flex items-center gap-1">
-                {item.to < item.from ? <TrendingDown size={14} className="text-red" /> : <TrendingUp size={14} className="text-primary" />}
-                {(((item.to - item.from) / item.from) * 100).toFixed(1)}%
-              </span>
-              {marginBadge(item.marginAfter)}
-              <span>Requested by: {item.requestedBy}</span>
-            </div>
-          </div>
+      {isLoading ? (
+        <div className="card p-8 text-center text-ink-muted">Loading pending approval requests...</div>
+      ) : items.length === 0 ? (
+        <div className="card p-8 text-center text-ink-muted">No price changes waiting for approval.</div>
+      ) : (
+        items.map((item) => {
+          const fromPrice = Number(item.fromPrice ?? item.from ?? 0);
+          const toPrice = Number(item.toPrice ?? item.to ?? 0);
+          const margin = Number(item.marginAfterPct ?? item.marginAfter ?? 0);
+          const pct = fromPrice > 0 ? (((toPrice - fromPrice) / fromPrice) * 100).toFixed(1) : 0;
+          const isDeciding = decidingId === item.id;
 
-          {decisions[item.id] ? (
-            <span className={decisions[item.id] === 'approved' ? 'badge-ok' : 'badge-danger'}>
-              {decisions[item.id] === 'approved' ? 'Approved' : 'Rejected'}
-            </span>
-          ) : (
-            <div className="flex items-center gap-2 shrink-0">
-              <button className="btn-outline" onClick={() => decide(item.id, 'rejected')}><XCircle size={16} /> Reject</button>
-              <button className="btn-primary" onClick={() => decide(item.id, 'approved')}><CheckCircle2 size={16} /> Approve & Publish</button>
+          return (
+            <div key={item.id} className="card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="font-mono text-xs text-ink-muted">PC-{item.id}</span>
+                  <span className="font-medium">{item.sku}</span>
+                  {item.productName && <span className="text-sm text-ink-muted">({item.productName})</span>}
+                  <span className="badge capitalize">{item.channel}</span>
+                  {item.emailPreviewUrl && (
+                    <a
+                      href={item.emailPreviewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline ml-2"
+                    >
+                      <ExternalLink size={12} /> View Email Preview
+                    </a>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 text-sm text-ink-muted flex-wrap">
+                  <span>₹{fromPrice} → <strong className="text-ink">₹{toPrice}</strong></span>
+                  <span className="flex items-center gap-1">
+                    {toPrice < fromPrice ? <TrendingDown size={14} className="text-red" /> : <TrendingUp size={14} className="text-primary" />}
+                    {pct}%
+                  </span>
+                  {marginBadge(margin)}
+                  <span>Requested by: {item.requestedBy || 'Team'}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  className="btn-outline flex items-center gap-1.5"
+                  onClick={() => handleDecision(item.id, 'reject')}
+                  disabled={isDeciding}
+                >
+                  <XCircle size={16} /> Reject
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary flex items-center gap-1.5"
+                  onClick={() => handleDecision(item.id, 'approve')}
+                  disabled={isDeciding}
+                >
+                  <CheckCircle2 size={16} /> Approve & Publish
+                </button>
+              </div>
             </div>
-          )}
-        </div>
-      ))}
+          );
+        })
+      )}
     </div>
   );
 }
 
 /* ---------------- Price History ---------------- */
-function PriceHistory({ rows }) {
+function PriceHistory({ rows = [], isLoading = false }) {
   return (
     <div className="card p-5 animate-enter overflow-x-auto">
-      <table className="table-clean w-full">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>SKU</th>
-            <th>Channel</th>
-            <th className="text-right">From</th>
-            <th className="text-right">To</th>
-            <th>Change</th>
-            <th>Changed By</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={i}>
-              <td className="text-ink-muted">{r.date}</td>
-              <td className="font-mono text-xs">{r.sku}</td>
-              <td><span className="badge">{r.channel}</span></td>
-              <td className="text-right font-mono">₹{r.from}</td>
-              <td className="text-right font-mono font-medium">₹{r.to}</td>
-              <td className="flex items-center gap-1">
-                {r.to < r.from
-                  ? <span className="flex items-center gap-1 text-red text-sm"><TrendingDown size={14} />{(((r.from - r.to) / r.from) * 100).toFixed(1)}%</span>
-                  : <span className="flex items-center gap-1 text-primary text-sm"><TrendingUp size={14} />{(((r.to - r.from) / r.from) * 100).toFixed(1)}%</span>}
-              </td>
-              <td className="text-ink-muted">{r.by}</td>
+      {isLoading ? (
+        <div className="p-8 text-center text-ink-muted">Loading price change history...</div>
+      ) : rows.length === 0 ? (
+        <div className="p-8 text-center text-ink-muted">No price change history recorded yet.</div>
+      ) : (
+        <table className="table-clean w-full">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>SKU</th>
+              <th>Channel</th>
+              <th className="text-right">From</th>
+              <th className="text-right">To</th>
+              <th>Change</th>
+              <th>Status</th>
+              <th>Decided Via / By</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const fromPrice = Number(r.fromPrice ?? r.from ?? 0);
+              const toPrice = Number(r.toPrice ?? r.to ?? 0);
+              const pct = fromPrice > 0 ? (((toPrice - fromPrice) / fromPrice) * 100).toFixed(1) : 0;
+              const dateDisplay = r.decidedAt
+                ? new Date(r.decidedAt).toISOString().split('T')[0]
+                : r.createdAt
+                ? new Date(r.createdAt).toISOString().split('T')[0]
+                : r.date || '—';
+
+              const byDisplay = r.decidedVia === 'email'
+                ? 'Approved via email'
+                : r.decidedVia === 'dashboard'
+                ? 'Dashboard'
+                : r.by || r.requestedBy || 'Team';
+
+              const isApproved = r.status === 'approved';
+
+              return (
+                <tr key={r.id || i}>
+                  <td className="text-ink-muted">{dateDisplay}</td>
+                  <td className="font-mono text-xs">{r.sku}</td>
+                  <td><span className="badge capitalize">{r.channel}</span></td>
+                  <td className="text-right font-mono">₹{fromPrice}</td>
+                  <td className="text-right font-mono font-medium">₹{toPrice}</td>
+                  <td className="flex items-center gap-1">
+                    {toPrice < fromPrice ? (
+                      <span className="flex items-center gap-1 text-red text-sm">
+                        <TrendingDown size={14} />{Math.abs(pct)}%
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-primary text-sm">
+                        <TrendingUp size={14} />{pct}%
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <span className={isApproved ? 'badge-ok capitalize' : 'badge-danger capitalize'}>
+                      {r.status || 'approved'}
+                    </span>
+                  </td>
+                  <td className="text-ink-muted">{byDisplay}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
 
-/* ---------------- Page ---------------- */
+/* ---------------- Main Page ---------------- */
 export default function PricingDiscounts() {
   const [activeTab, setActiveTab] = useState('channel');
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [priceHistory, setPriceHistory] = useState([]);
+  const [priceOverrides, setPriceOverrides] = useState({});
+  const [loadingApprovals, setLoadingApprovals] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Fetch approved price overrides to apply to Channel Pricing
+  const fetchApprovedOverrides = useCallback(async () => {
+    try {
+      const data = await getPriceChanges('approved');
+      if (Array.isArray(data)) {
+        const overrides = {};
+        data.forEach(item => {
+          if (item.sku && item.channel && item.toPrice != null) {
+            overrides[`${item.sku}-${item.channel.toLowerCase()}`] = Number(item.toPrice);
+          }
+        });
+        setPriceOverrides(overrides);
+      }
+    } catch (err) {
+      console.error('[fetchApprovedOverrides error]', err);
+    }
+  }, []);
+
+  // Fetch pending approvals for Queue
+  const fetchPendingApprovals = useCallback(async () => {
+    try {
+      setLoadingApprovals(true);
+      const data = await getPriceChanges('pending');
+      setPendingApprovals(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('[fetchPendingApprovals error]', err);
+    } finally {
+      setLoadingApprovals(false);
+    }
+  }, []);
+
+  // Fetch all price changes for History
+  const fetchPriceHistory = useCallback(async () => {
+    try {
+      setLoadingHistory(true);
+      const data = await getPriceChanges();
+      if (Array.isArray(data)) {
+        setPriceHistory(data.filter(item => item.status !== 'pending'));
+      }
+    } catch (err) {
+      console.error('[fetchPriceHistory error]', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
+  // On mount: fetch approved overrides
+  useEffect(() => {
+    fetchApprovedOverrides();
+  }, [fetchApprovedOverrides]);
+
+  // When tab changes, fetch relevant data
+  useEffect(() => {
+    if (activeTab === 'approval') {
+      fetchPendingApprovals();
+    } else if (activeTab === 'history') {
+      fetchPriceHistory();
+    } else if (activeTab === 'channel') {
+      fetchApprovedOverrides();
+    }
+  }, [activeTab, fetchPendingApprovals, fetchPriceHistory, fetchApprovedOverrides]);
+
+  const handleDecisionComplete = () => {
+    fetchPendingApprovals();
+    fetchApprovedOverrides();
+  };
 
   return (
     <div className="min-h-screen p-6" style={{ background: 'var(--color-bg)' }}>
@@ -398,15 +603,41 @@ export default function PricingDiscounts() {
               style={active ? { borderBottom: '2px solid var(--color-primary)' } : { borderBottom: '2px solid transparent' }}
             >
               <Icon size={15} /> {tab.label}
+              {tab.id === 'approval' && pendingApprovals.length > 0 && (
+                <span className="badge-warn ml-1.5 text-xs px-1.5 py-0.5 rounded-full">
+                  {pendingApprovals.length}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
 
-      {activeTab === 'channel' && <ChannelPricing rows={UNIFIED_PRODUCTS} />}
-      {activeTab === 'simulator' && <DiscountSimulator rows={UNIFIED_PRODUCTS} />}
-      {activeTab === 'approval' && <PriceApprovalQueue items={MOCK_PRICE_APPROVALS} />}
-      {activeTab === 'history' && <PriceHistory rows={MOCK_PRICE_HISTORY} />}
+      {activeTab === 'channel' && (
+        <ChannelPricing rows={UNIFIED_PRODUCTS} priceOverrides={priceOverrides} />
+      )}
+      {activeTab === 'simulator' && (
+        <DiscountSimulator
+          rows={UNIFIED_PRODUCTS}
+          onSubmitted={() => {
+            fetchPendingApprovals();
+            fetchApprovedOverrides();
+          }}
+        />
+      )}
+      {activeTab === 'approval' && (
+        <PriceApprovalQueue
+          items={pendingApprovals}
+          isLoading={loadingApprovals}
+          onDecided={handleDecisionComplete}
+        />
+      )}
+      {activeTab === 'history' && (
+        <PriceHistory
+          rows={priceHistory}
+          isLoading={loadingHistory}
+        />
+      )}
     </div>
   );
-}
+}

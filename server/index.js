@@ -4,6 +4,7 @@ import cors from 'cors';
 import vendorRoutes from './routes/vendors.js';
 import poRoutes from './routes/pos.js';
 import channelOrderRoutes from './routes/channelOrders.js';
+import priceChangeRoutes from './routes/priceChanges.js';
 import { runMockChannelSync } from './jobs/mockChannelSync.js';
 import { initTables } from './db/initTables.js';
 import { startVendorFollowUpCron } from './jobs/vendorFollowupCron.js';
@@ -27,6 +28,8 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/pos', poRoutes);
 app.use('/api/channel-orders', channelOrderRoutes);
+app.use('/api/price-changes', priceChangeRoutes);
+
 
 // ── 404 fallback ────────────────────────────────────────────────────
 app.use((_req, res) => {

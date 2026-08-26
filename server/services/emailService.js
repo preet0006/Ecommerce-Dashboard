@@ -567,3 +567,62 @@ export async function sendVendorFollowUpReminderEmail({ to, vendorName, poDetail
     vendorName,
   };
 }
+
+/**
+ * Sends a price-change approval request to the admin, with one-click
+ * Approve / Reject links.
+ */
+export async function sendPriceChangeApprovalEmail({ to, priceChange, approveUrl, rejectUrl }) {
+  if (!to) throw new Error('Recipient email is required for price change approval');
+
+  const transporter = await getTransporter();
+  const { id, sku, productName, channel, fromPrice, toPrice, marginAfterPct, requestedBy } = priceChange;
+  const pctChange = (((toPrice - fromPrice) / fromPrice) * 100).toFixed(1);
+  const sender = process.env.SMTP_FROM || '"GreenFibre Pricing" <pricing@greenfibre.com>';
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:24px 0;background:#edf2ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#16231d;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #d8e2dc;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#092c1e 0%,#135235 100%);padding:26px 32px;">
+      <span style="color:#fff;font-size:19px;font-weight:800;">GREEN FIBRE — Price Change Approval</span>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="margin:0 0 18px 0;font-size:15px;">A price change is waiting for your decision:</p>
+      <div style="background:#f7faf8;border:1px solid #dfe9e3;border-radius:12px;padding:18px 20px;margin-bottom:22px;">
+        <div style="font-family:monospace;font-size:13px;color:#576d61;margin-bottom:4px;">PC-${id} · ${sku} · ${channel}</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;">${productName || ''}</div>
+        <div style="font-size:16px;">₹${fromPrice} → <strong>₹${toPrice}</strong> (${pctChange}%)</div>
+        <div style="font-size:13px;color:#576d61;margin-top:6px;">Margin after: ${marginAfterPct ?? '—'}% · Requested by: ${requestedBy}</div>
+      </div>
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td style="padding-right:12px;">
+          <a href="${approveUrl}" style="background:#092c1e;color:#fff;text-decoration:none;padding:13px 26px;border-radius:10px;font-weight:700;font-size:14px;display:inline-block;">✓ Approve & Publish</a>
+        </td>
+        <td>
+          <a href="${rejectUrl}" style="background:#fff;color:#b3261e;border:1px solid #e0b4b0;text-decoration:none;padding:13px 26px;border-radius:10px;font-weight:700;font-size:14px;display:inline-block;">✕ Reject</a>
+        </td>
+      </tr></table>
+      <p style="font-size:12px;color:#7a8f83;margin-top:22px;">This link is valid for 7 days and can only be used once.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const info = await transporter.sendMail({
+    from: sender,
+    to,
+    subject: `Price Change Approval Needed: ${sku} on ${channel} (₹${fromPrice} → ₹${toPrice})`,
+    text: `Price change for ${sku} on ${channel}: ₹${fromPrice} -> ₹${toPrice}. Approve: ${approveUrl}  Reject: ${rejectUrl}`,
+    html,
+  });
+
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+  console.log(`✉️ Price change approval email sent to ${to} (Message ID: ${info.messageId})`);
+  if (previewUrl) console.log(`🔗 Ethereal Preview: ${previewUrl}`);
+
+  return { success: true, messageId: info.messageId, previewUrl: previewUrl || null };
+}
+
