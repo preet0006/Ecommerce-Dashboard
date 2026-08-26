@@ -4,7 +4,7 @@ import { statusBadge } from './utils';
 
 /* ══════════════════════════════════════════════════════════════
    PO LIST & STATUS TAB
-══════════════════════════════════════════════════════════════ */
+   ══════════════════════════════════════════════════════════════ */
 export default function POList({ pos, onTriggerCron, cronLoading, cronResult }) {
   const [filter, setFilter] = useState('ALL');
 
@@ -21,19 +21,19 @@ export default function POList({ pos, onTriggerCron, cronLoading, cronResult }) 
       });
 
   return (
-    <div className="card p-5 animate-enter flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div className="card p-4 sm:p-5 animate-enter flex flex-col gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5">
         <div>
-          <h3 className="font-display font-semibold text-lg">Purchase Orders & Status</h3>
+          <h3 className="font-display font-semibold text-base sm:text-lg">Purchase Orders & Status</h3>
           <p className="text-xs text-ink-muted">
             All orders confirmed and stored in database with dynamic delivery day matching.
           </p>
         </div>
 
-        {/* Cron Trigger Button */}
-        <div className="flex items-center gap-3">
+        {/* Cron Trigger Button & Filter */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
-            className="btn-outline !py-1.5 !px-3 text-xs flex items-center gap-1.5 border-amber-300 bg-amber-50/50 hover:bg-amber-100/80 text-amber-900"
+            className="btn-outline !py-1.5 !px-2.5 sm:!px-3 text-xs flex items-center gap-1.5 border-amber-300 bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-300"
             onClick={onTriggerCron}
             disabled={cronLoading}
             title="Execute Dynamic Follow-Up Cron Job Manually"
@@ -41,17 +41,21 @@ export default function POList({ pos, onTriggerCron, cronLoading, cronResult }) 
             {cronLoading ? (
               <><Loader2 size={13} className="animate-spin" /> Checking Cron…</>
             ) : (
-              <><BellRing size={13} className="text-amber-600" /> Run Daily SLA Cron</>
+              <><BellRing size={13} className="text-amber-600 dark:text-amber-400" /> Run SLA Cron</>
             )}
           </button>
 
           {/* Filter buttons */}
-          <div className="flex items-center gap-1 bg-surface-raised p-1 rounded-lg border text-xs">
+          <div className="flex items-center gap-1 bg-surface-raised p-1 rounded-lg border text-xs overflow-x-auto">
             {['ALL', 'confirmed', 'pending', 'rejected'].map((st) => (
               <button
                 key={st}
                 onClick={() => setFilter(st)}
-                className={`px-3 py-1 rounded-md transition-all ${filter === st ? 'bg-surface font-semibold text-primary shadow-sm' : 'text-ink-muted'}`}
+                className={`px-2.5 sm:px-3 py-1 rounded-md transition-all whitespace-nowrap ${
+                  filter === st
+                    ? 'bg-surface font-semibold text-primary shadow-2xs'
+                    : 'text-ink-muted hover:text-ink'
+                }`}
               >
                 {st === 'confirmed' ? 'Confirmed' : st === 'pending' ? 'Pending' : st === 'rejected' ? 'Rejected' : 'ALL'}
               </button>
@@ -61,9 +65,9 @@ export default function POList({ pos, onTriggerCron, cronLoading, cronResult }) 
       </div>
 
       {cronResult && (
-        <div className="p-3 rounded-xl border border-amber-300 bg-amber-50 text-xs text-amber-900 flex items-center justify-between animate-enter">
+        <div className="p-3 rounded-xl border border-amber-300 bg-amber-500/10 text-xs text-amber-900 dark:text-amber-200 flex items-center justify-between animate-enter">
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={15} className="text-amber-700" />
+            <CheckCircle2 size={15} className="text-amber-600 dark:text-amber-400 shrink-0" />
             <span>
               <strong>Daily Cron Result:</strong> {cronResult.message} ({cronResult.result?.checked || 0} orders checked, {cronResult.result?.sent || 0} reminder emails dispatched).
             </span>
@@ -71,7 +75,7 @@ export default function POList({ pos, onTriggerCron, cronLoading, cronResult }) 
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <div className="table-responsive-container">
         <table className="table-clean">
           <thead>
             <tr>
@@ -107,7 +111,7 @@ export default function POList({ pos, onTriggerCron, cronLoading, cronResult }) 
                   <div className="flex flex-col text-xs font-mono">
                     <span className="font-bold text-primary">{po.givenDays || 14} days total</span>
                     {po.reminderSent === 'true' ? (
-                      <span className="text-emerald-700 text-[10px] flex items-center gap-1 font-semibold">
+                      <span className="text-emerald-700 dark:text-emerald-400 text-[10px] flex items-center gap-1 font-semibold">
                         <Check size={10} /> Auto-check Sent
                       </span>
                     ) : (
@@ -118,7 +122,7 @@ export default function POList({ pos, onTriggerCron, cronLoading, cronResult }) 
                 <td>
                   <div>{statusBadge(po.status)}</div>
                   {(po.status === 'rejected' || po.status === 'Rejected') && po.rejectionReason && (
-                    <div className="text-[10px] text-red-700 mt-1 max-w-[180px] leading-tight italic">
+                    <div className="text-[10px] text-red-700 dark:text-red-400 mt-1 max-w-[180px] leading-tight italic">
                       "{po.rejectionReason}"
                     </div>
                   )}

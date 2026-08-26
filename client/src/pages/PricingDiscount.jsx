@@ -249,13 +249,13 @@ export default function PricingDiscounts() {
   const [activeTab, setActiveTab] = useState('channel');
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--color-bg)' }}>
-      <div className="flex items-center gap-2 text-sm text-ink-muted mb-1">
-        <span>Green Fibre</span> <ChevronRight size={14} /> <span className="text-ink font-medium">Pricing & Discounts</span>
+    <div className="min-h-screen p-4 sm:p-6 bg-bg transition-colors">
+      <div className="flex items-center gap-2 text-xs sm:text-sm text-ink-muted mb-1">
+        <span>Green Fibre</span> <ChevronRight size={13} /> <span className="text-ink font-medium">Pricing & Discounts</span>
       </div>
-      <h1 className="font-display text-2xl font-semibold mb-5">Pricing & Discounts</h1>
+      <h1 className="font-display text-xl sm:text-2xl font-semibold mb-4 sm:mb-5">Pricing & Discounts</h1>
 
-      <div className="flex items-center gap-1 mb-5 border-b" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="flex items-center gap-1 mb-5 border-b border-border overflow-x-auto pb-0.5">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
@@ -263,7 +263,9 @@ export default function PricingDiscounts() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={active ? 'sidebar-link-active !rounded-b-none' : 'sidebar-link !rounded-b-none'}
+              className={`whitespace-nowrap text-xs sm:text-sm ${
+                active ? 'sidebar-link-active !rounded-b-none' : 'sidebar-link !rounded-b-none'
+              }`}
               style={active ? { borderBottom: '2px solid var(--color-primary)' } : { borderBottom: '2px solid transparent' }}
             >
               <Icon size={15} /> {tab.label}

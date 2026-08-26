@@ -58,30 +58,49 @@ export default function PurchaseOrders() {
   };
 
   // When user approves an order in Approval Queue pop-up
-  const handleApproveOrder = (approvedPo) => {
-    setApprovalQueue((prev) => prev.filter((p) => p.id !== approvedPo.id));
-    setPos((prev) => {
-      const exists = prev.some((p) => p.id === approvedPo.id);
-      if (exists) {
-        return prev.map((p) => p.id === approvedPo.id ? approvedPo : p);
+  const handleApproveOrder = async (orderId, verifiedData) => {
+    try {
+      const updated = await api.confirmPurchaseOrder(orderId, verifiedData);
+      setApprovalQueue((prev) => prev.filter((o) => o.id !== orderId));
+      if (updated && updated.po) {
+        setPos((prev) => [updated.po, ...prev.filter((p) => p.id !== orderId)]);
       }
-      return [approvedPo, ...prev];
-    });
+    } catch (e) {
+      console.warn('Confirm error:', e.message);
+      // Fallback
+      setApprovalQueue((prev) => prev.filter((o) => o.id !== orderId));
+      setPos((prev) =>
+        prev.map((p) =>
+          p.id === orderId
+            ? { ...p, status: 'confirmed', ...verifiedData }
+            : p
+        )
+      );
+    }
   };
 
   // When user rejects an order in Approval Queue
-  const handleRejectOrder = (poId, reason, rejectedPo) => {
-    setApprovalQueue((prev) => prev.filter((p) => p.id !== poId));
-    setPos((prev) =>
-      prev.map((p) =>
-        p.id === poId
-          ? { ...(rejectedPo || p), status: 'rejected', rejectionReason: reason }
-          : p
-      )
-    );
+  const handleRejectOrder = async (orderId, rejectionReason) => {
+    try {
+      const updated = await api.rejectPurchaseOrder(orderId, { rejectionReason });
+      setApprovalQueue((prev) => prev.filter((o) => o.id !== orderId));
+      if (updated && updated.po) {
+        setPos((prev) => [updated.po, ...prev.filter((p) => p.id !== orderId)]);
+      }
+    } catch (e) {
+      console.warn('Reject error:', e.message);
+      setApprovalQueue((prev) => prev.filter((o) => o.id !== orderId));
+      setPos((prev) =>
+        prev.map((p) =>
+          p.id === orderId
+            ? { ...p, status: 'rejected', rejectionReason }
+            : p
+        )
+      );
+    }
   };
 
-  // Trigger dynamic daily cron check manually from UI
+  // Manual Trigger for 10-day cron follow-up
   const handleTriggerCron = async () => {
     setCronLoading(true);
     setCronResult(null);
@@ -89,21 +108,21 @@ export default function PurchaseOrders() {
       const res = await api.runFollowUpCron();
       setCronResult(res);
       loadData();
-    } catch (err) {
-      setCronResult({ message: `Cron Error: ${err.message}` });
+    } catch (e) {
+      setCronResult({ message: `Error running cron: ${e.message}` });
     } finally {
       setCronLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--color-bg)' }}>
-      <div className="flex items-center gap-2 text-sm text-ink-muted mb-1">
-        <span>Green Fibre</span> <ChevronRight size={14} /> <span className="text-ink font-medium">Purchase Orders</span>
+    <div className="min-h-screen p-4 sm:p-6 bg-bg transition-colors">
+      <div className="flex items-center gap-2 text-xs sm:text-sm text-ink-muted mb-1">
+        <span>Green Fibre</span> <ChevronRight size={13} /> <span className="text-ink font-medium">Purchase Orders</span>
       </div>
-      <h1 className="font-display text-2xl font-semibold mb-5">Purchase Orders & Approvals</h1>
+      <h1 className="font-display text-xl sm:text-2xl font-semibold mb-4 sm:mb-5">Purchase Orders & Approvals</h1>
 
-      <div className="flex items-center gap-1 mb-5 border-b" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="flex items-center gap-1 mb-5 border-b border-border overflow-x-auto pb-0.5">
         {PURCHASE_TABS.map((tab) => {
           const Icon   = tab.icon;
           const active = activeTab === tab.id;
@@ -112,7 +131,9 @@ export default function PurchaseOrders() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={active ? 'sidebar-link-active !rounded-b-none' : 'sidebar-link !rounded-b-none'}
+              className={`whitespace-nowrap text-xs sm:text-sm ${
+                active ? 'sidebar-link-active !rounded-b-none' : 'sidebar-link !rounded-b-none'
+              }`}
               style={active
                 ? { borderBottom: '2px solid var(--color-primary)' }
                 : { borderBottom: '2px solid transparent' }}

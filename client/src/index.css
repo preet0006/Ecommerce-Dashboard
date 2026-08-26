@@ -1,18 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================
-   GREEN FIBRE DESIGN TOKENS
+   GREEN FIBRE DESIGN TOKENS (LIGHT & DARK THEMES)
    ============================================================ */
 
 :root {
   /* Surfaces */
   --color-bg: #F6F8F5;
   --color-surface: #FFFFFF;
+  --color-surface-raised: #F0F4F0;
   --color-border: #E2E7E0;
+  --color-border-subtle: #EDF1EC;
 
   /* Text */
   --color-ink: #16231D;
@@ -46,6 +48,37 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+/* ── Luxury Obsidian Dark Mode ── */
+.dark, [data-theme="dark"] {
+  /* Surfaces */
+  --color-bg: #0D1310;
+  --color-surface: #151D18;
+  --color-surface-raised: #1C2620;
+  --color-border: #23322A;
+  --color-border-subtle: #19241E;
+
+  /* Text */
+  --color-ink: #F2F6F3;
+  --color-ink-muted: #8E9F96;
+
+  /* Brand */
+  --color-primary: #34A875;
+  --color-primary-soft: rgba(52, 168, 117, 0.18);
+  --color-primary-strong: #4ADE92;
+
+  /* Status */
+  --color-amber: #FBBF24;
+  --color-amber-soft: rgba(251, 191, 36, 0.16);
+
+  --color-red: #F87171;
+  --color-red-soft: rgba(248, 113, 113, 0.16);
+
+  /* Shadow */
+  --shadow-card:
+    0 4px 20px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
 
 /* ============================================================
    BASE
@@ -55,6 +88,7 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    color-scheme: light dark;
   }
 
   body {
@@ -62,7 +96,9 @@
     margin: 0;
     min-width: 320px;
     background-color: var(--color-bg);
+    color: var(--color-ink);
     font-family: var(--font-body);
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
   h1,
@@ -70,6 +106,7 @@
   h3,
   h4 {
     @apply font-display text-ink;
+    color: var(--color-ink);
   }
 
   ::selection {
@@ -90,12 +127,14 @@
      ---------------------------------------------------------- */
 
   .card {
-    @apply bg-surface border border-border rounded-lg;
+    @apply bg-surface border border-border rounded-lg transition-colors;
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
     box-shadow: var(--shadow-card);
   }
 
   .kpi-card {
-    @apply card p-5 flex flex-col gap-2 relative;
+    @apply card p-4 sm:p-5 flex flex-col gap-1.5 sm:gap-2 relative;
   }
 
 
@@ -109,15 +148,21 @@
   }
 
   .badge-ok {
-    @apply badge bg-primary-soft text-primary-strong;
+    @apply badge;
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary-strong);
   }
 
   .badge-warn {
-    @apply badge bg-amber-soft text-amber;
+    @apply badge;
+    background-color: var(--color-amber-soft);
+    color: var(--color-amber);
   }
 
   .badge-danger {
-    @apply badge bg-red-soft text-red;
+    @apply badge;
+    background-color: var(--color-red-soft);
+    color: var(--color-red);
   }
 
 
@@ -127,8 +172,8 @@
 
   .btn {
     @apply inline-flex items-center justify-center gap-2
-           rounded-md px-4 py-2 text-sm font-medium
-           transition-colors duration-150
+           rounded-md px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-medium
+           transition-all duration-150 select-none
            disabled:opacity-50
            disabled:pointer-events-none;
   }
@@ -139,19 +184,24 @@
   }
 
   .btn-primary {
-    @apply btn bg-primary text-white;
+    @apply btn text-white shadow-sm;
+    background-color: var(--color-primary);
   }
 
   .btn-primary:hover {
     background-color: var(--color-primary-strong);
+    box-shadow: 0 4px 12px rgba(31, 110, 76, 0.25);
   }
 
   .btn-outline {
-    @apply btn border border-border bg-surface text-ink;
+    @apply btn border text-ink;
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
   }
 
   .btn-outline:hover {
-    border-color: rgba(31, 110, 76, 0.4);
+    border-color: var(--color-primary);
+    background-color: var(--color-surface-raised);
   }
 
   .btn-ghost {
@@ -174,15 +224,15 @@
            text-sm text-ink
            transition-colors;
     
+    background-color: var(--color-surface);
     border-color: var(--color-border);
+    color: var(--color-ink);
   }
 
   .input:focus {
     outline: none;
     border-color: var(--color-primary);
-
-    box-shadow:
-      0 0 0 2px rgba(31, 110, 76, 0.3);
+    box-shadow: 0 0 0 2px var(--color-primary-soft);
   }
 
   .input::placeholder {
@@ -191,7 +241,7 @@
   }
 
   .label {
-    @apply block mb-1 text-sm text-ink-muted;
+    @apply block mb-1 text-xs sm:text-sm text-ink-muted font-medium;
   }
 
 
@@ -205,15 +255,15 @@
            text-sm text-ink
            transition-colors;
     
+    background-color: var(--color-surface);
     border-color: var(--color-border);
+    color: var(--color-ink);
   }
 
   .select:focus {
     outline: none;
     border-color: var(--color-primary);
-
-    box-shadow:
-      0 0 0 2px rgba(31, 110, 76, 0.3);
+    box-shadow: 0 0 0 2px var(--color-primary-soft);
   }
 
 
@@ -228,15 +278,15 @@
            transition-colors
            resize-y;
 
+    background-color: var(--color-surface);
     border-color: var(--color-border);
+    color: var(--color-ink);
   }
 
   .textarea:focus {
     outline: none;
     border-color: var(--color-primary);
-
-    box-shadow:
-      0 0 0 2px rgba(31, 110, 76, 0.3);
+    box-shadow: 0 0 0 2px var(--color-primary-soft);
   }
 
   .textarea::placeholder {
@@ -250,7 +300,8 @@
      ---------------------------------------------------------- */
 
   .skeleton {
-    @apply animate-pulse rounded-md bg-primary-soft;
+    @apply animate-pulse rounded-md;
+    background-color: var(--color-primary-soft);
   }
 
 
@@ -260,8 +311,8 @@
 
   .sidebar-link {
     @apply flex items-center gap-3
-           rounded-md px-3 py-2
-           text-sm font-medium text-ink-muted
+           rounded-lg px-3 py-2
+           text-xs sm:text-sm font-medium text-ink-muted
            transition-colors;
   }
 
@@ -271,7 +322,7 @@
   }
 
   .sidebar-link-active {
-    @apply sidebar-link;
+    @apply sidebar-link font-semibold shadow-sm;
     background-color: var(--color-primary-soft);
     color: var(--color-primary-strong);
   }
@@ -282,40 +333,48 @@
      ---------------------------------------------------------- */
 
   .section-title {
-    @apply font-display text-sm font-semibold
+    @apply font-display text-xs sm:text-sm font-semibold
            uppercase tracking-wide text-ink-muted;
   }
 
   .stat-figure {
-    @apply font-mono text-2xl font-semibold
+    @apply font-mono text-xl sm:text-2xl font-semibold
            tabular-nums text-ink;
   }
 
 
   /* ----------------------------------------------------------
-     TABLE
+     TABLE (RESPONSIVE READY)
      ---------------------------------------------------------- */
+
+  .table-responsive-container {
+    @apply w-full overflow-x-auto rounded-lg border border-border;
+    -webkit-overflow-scrolling: touch;
+  }
 
   .table-clean {
     width: 100%;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     line-height: 1.25rem;
     border-collapse: collapse;
+    min-width: 600px;
   }
 
   .table-clean th {
-    font-weight: 500;
+    font-weight: 600;
     color: var(--color-ink-muted);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     line-height: 1rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    padding-top: 0.25rem;
+    padding-top: 0.5rem;
     padding-bottom: 0.625rem;
     padding-left: 0.75rem;
     padding-right: 0.75rem;
     border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-surface);
     text-align: left;
+    white-space: nowrap;
   }
 
   .table-clean td {
@@ -323,19 +382,19 @@
     padding-bottom: 0.75rem;
     padding-left: 0.75rem;
     padding-right: 0.75rem;
-    border-bottom: 1px solid rgba(226, 231, 224, 0.7);
+    border-bottom: 1px solid var(--color-border);
     color: var(--color-ink);
     text-align: left;
   }
 
   .table-clean th:first-child,
   .table-clean td:first-child {
-    padding-left: 0;
+    padding-left: 1rem;
   }
 
   .table-clean th:last-child,
   .table-clean td:last-child {
-    padding-right: 0;
+    padding-right: 1rem;
   }
 
   .table-clean th[class*="text-right"],
@@ -367,7 +426,7 @@
 }
 
 .animate-enter {
-  animation: fadeInUp 0.35s ease-out both;
+  animation: fadeInUp 0.28s ease-out both;
 }
 
 
@@ -391,8 +450,8 @@
    ============================================================ */
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {

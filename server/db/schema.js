@@ -1,5 +1,28 @@
 import { pgTable, serial, varchar, text, integer, numeric, timestamp, unique } from 'drizzle-orm/pg-core';
 
+// ─── System Users (Role-Based Access Control) ───────────────────────────────
+export const systemUsers = pgTable('system_users', {
+  id:           serial('id').primaryKey(),
+  name:         varchar('name', { length: 150 }).notNull(),
+  email:        varchar('email', { length: 150 }).notNull().unique(),
+  role:         varchar('role', { length: 30 }).default('reader').notNull(), // 'admin' | 'manager' | 'reader'
+  status:       varchar('status', { length: 30 }).default('active').notNull(), // 'active' | 'inactive'
+  department:   varchar('department', { length: 100 }).default('Procurement'),
+  avatar:       varchar('avatar', { length: 10 }).default('GF'),
+  lastLoginAt:  timestamp('last_login_at'),
+  createdAt:    timestamp('created_at').defaultNow().notNull(),
+  updatedAt:    timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── Application Global Settings ────────────────────────────────────────────
+export const appSettings = pgTable('app_settings', {
+  id:           serial('id').primaryKey(),
+  settingKey:   varchar('setting_key', { length: 100 }).notNull().unique(), // e.g. 'company_profile', 'font_preference'
+  settingValue: text('setting_value').notNull(),                             // JSON stringified configuration
+  updatedBy:    varchar('updated_by', { length: 100 }).default('Admin'),
+  updatedAt:    timestamp('updated_at').defaultNow().notNull(),
+});
+
 // ─── Vendors ────────────────────────────────────────────────────────────────
 export const vendors = pgTable('vendors', {
   id:           serial('id').primaryKey(),
@@ -71,4 +94,26 @@ export const purchaseOrders = pgTable('purchase_orders', {
   deliveryFeedback:       text('delivery_feedback'),
   createdAt:              timestamp('created_at').defaultNow().notNull(),
   updatedAt:              timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── AI Chat Sessions ────────────────────────────────────────────────────────
+export const aiChatSessions = pgTable('ai_chat_sessions', {
+  id:           serial('id').primaryKey(),
+  sessionId:    varchar('session_id', { length: 100 }).notNull().unique(),
+  title:        varchar('title', { length: 255 }).notNull(),
+  pinned:       varchar('pinned', { length: 10 }).default('false'),
+  createdAt:    timestamp('created_at').defaultNow().notNull(),
+  updatedAt:    timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── AI User Question History (Stores only user queries & attachments) ────────
+export const aiUserQueries = pgTable('ai_user_queries', {
+  id:                 serial('id').primaryKey(),
+  sessionId:          varchar('session_id', { length: 100 }).notNull(),
+  queryText:          text('query_text').notNull(),
+  fileName:           varchar('file_name', { length: 255 }),
+  fileSize:           varchar('file_size', { length: 50 }),
+  fileType:           varchar('file_type', { length: 50 }),
+  fileContentSummary: text('file_content_summary'),
+  createdAt:          timestamp('created_at').defaultNow().notNull(),
 });

@@ -127,4 +127,48 @@ export const api = {
 
   /** Fetch a single channel order by numeric id */
   getChannelOrder: (id) => request(`/channel-orders/${id}`),
+
+  // ── AI Intelligence API (Groq SDK & PostgreSQL Grounding) ───────────────────
+
+  /** Official Groq AI Chat endpoint: POST /api/ai/chat */
+  sendAiChat: (data) =>
+    request('/ai/chat', { method: 'POST', body: JSON.stringify(data) }),
+
+  /** Fetch all saved AI chat sessions from DB */
+  getAiSessions: () => request('/ai/sessions'),
+
+  /** Fetch user question history for a session */
+  getAiQuestionHistory: (sessionId) => request(`/ai/history/${sessionId}`),
+
+  /** Send user query & file to AI, stores question in DB and returns grounded response */
+  sendAiQuery: (data) =>
+    request('/ai/query', { method: 'POST', body: JSON.stringify(data) }),
+
+  /** Delete AI session and question history */
+  deleteAiSession: (sessionId) =>
+    request(`/ai/sessions/${sessionId}`, { method: 'DELETE' }),
+
+  // ── System Settings & RBAC Users API ────────────────────────────────────────
+
+  /** Fetch all team members with roles (Admin vs Reader) */
+  getSystemUsers: () => request('/settings/users'),
+
+  /** Create a new system user */
+  createSystemUser: (data) =>
+    request('/settings/users', { method: 'POST', body: JSON.stringify(data) }),
+
+  /** Update system user role or details */
+  updateSystemUser: (id, data) =>
+    request(`/settings/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  /** Delete a system user */
+  deleteSystemUser: (id) =>
+    request(`/settings/users/${id}`, { method: 'DELETE' }),
+
+  /** Fetch general application settings */
+  getAppSettings: () => request('/settings/general'),
+
+  /** Save application setting */
+  saveAppSettings: (data) =>
+    request('/settings/general', { method: 'POST', body: JSON.stringify(data) }),
 };

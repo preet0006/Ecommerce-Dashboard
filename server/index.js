@@ -4,6 +4,8 @@ import cors from 'cors';
 import vendorRoutes from './routes/vendors.js';
 import poRoutes from './routes/pos.js';
 import channelOrderRoutes from './routes/channelOrders.js';
+import aiRoutes from './routes/ai.js';
+import settingsRoutes from './routes/settings.js';
 import { runMockChannelSync } from './jobs/mockChannelSync.js';
 import { initTables } from './db/initTables.js';
 import { startVendorFollowUpCron } from './jobs/vendorFollowupCron.js';
@@ -16,7 +18,8 @@ app.use(cors({
   origin: ['http://localhost:5173', 'http://localhost:4173'], // Vite dev + preview ports
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ── Health check ────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -27,6 +30,8 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/pos', poRoutes);
 app.use('/api/channel-orders', channelOrderRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // ── 404 fallback ────────────────────────────────────────────────────
 app.use((_req, res) => {
