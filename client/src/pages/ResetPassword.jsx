@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { Leaf, Lock, Loader2, CheckCircle2, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Lock, Loader2, CheckCircle2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { resetPassword as resetPasswordApi } from '../lib/api';
+import greenfibreLogo from '../assets/greenfibre-logo.png';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -63,11 +64,14 @@ export default function ResetPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-bg text-ink">
       <div className="card max-w-md w-full p-8 shadow-xl border border-border animate-enter">
-        <div className="flex items-center gap-2 mb-6">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
-            <Leaf size={18} />
+        <div className="flex items-center gap-3 mb-6">
+          <div className="h-10 w-10 rounded-xl bg-white p-1 border border-border/80 shadow-xs flex items-center justify-center">
+            <img src={greenfibreLogo} alt="Green Fibre Logo" className="h-full w-full object-contain" />
           </div>
-          <span className="font-display font-bold text-lg tracking-wide">GREEN FIBRE</span>
+          <div>
+            <span className="font-display font-bold text-base tracking-wide text-ink block leading-tight">GREEN FIBRE</span>
+            <span className="text-[10px] text-ink-muted font-medium uppercase tracking-wider">Secure Password Reset</span>
+          </div>
         </div>
 
         {success ? (

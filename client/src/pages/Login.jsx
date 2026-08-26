@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Leaf, Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { login as loginApi } from '../lib/api';
+import greenfibreLogo from '../assets/greenfibre-logo.png';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -53,9 +54,11 @@ export default function Login() {
         </svg>
 
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
-          <div className="flex items-center gap-2 mb-8">
-            <Leaf size={28} />
-            <span className="font-display text-lg font-semibold tracking-wide">GREEN FIBRE</span>
+          <div className="flex items-center gap-3 mb-8">
+            <div className="h-12 w-12 rounded-2xl bg-white p-1.5 shadow-lg flex items-center justify-center">
+              <img src={greenfibreLogo} alt="Green Fibre Logo" className="h-full w-full object-contain" />
+            </div>
+            <span className="font-display text-xl font-bold tracking-wide">GREEN FIBRE</span>
           </div>
           <h1 className="font-display text-4xl font-bold leading-tight mb-4">
             Welcome back to<br />your dashboard
@@ -69,11 +72,14 @@ export default function Login() {
       {/* Right — login form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center px-6 sm:px-8 py-12 bg-surface">
         <div className="w-full max-w-sm">
-          <div className="flex items-center gap-2 mb-6 lg:hidden">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
-              <Leaf size={18} />
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-11 w-11 rounded-xl bg-white p-1 border border-border/80 shadow-xs flex items-center justify-center">
+              <img src={greenfibreLogo} alt="Green Fibre Logo" className="h-full w-full object-contain" />
             </div>
-            <span className="font-display font-bold text-lg tracking-wide text-ink">GREEN FIBRE</span>
+            <div>
+              <span className="font-display font-bold text-lg tracking-wide text-ink block leading-tight">GREEN FIBRE</span>
+              <span className="text-[10px] text-ink-muted font-medium uppercase tracking-wider">Team Portal</span>
+            </div>
           </div>
 
           <h2 className="font-display text-2xl font-bold text-ink mb-1">Team Login</h2>

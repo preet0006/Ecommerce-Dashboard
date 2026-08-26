@@ -19,6 +19,7 @@ import {
 import { NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext";
 import { logout } from "../../lib/api";
+import greenfibreLogo from "../../assets/greenfibre-logo.png";
 
 export const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
@@ -46,8 +47,8 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="flex items-center justify-between px-2 mb-6 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white shadow-sm">
-            <span className="font-display text-sm font-bold tracking-wider">GF</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1 border border-border/80 shadow-xs overflow-hidden">
+            <img src={greenfibreLogo} alt="Green Fibre Logo" className="h-full w-full object-contain" />
           </div>
           <div>
             <div className="font-display text-sm font-bold tracking-tight text-ink">
@@ -171,13 +172,18 @@ export function MobileSidebarDrawer({ open, onClose }) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-1 mb-5 shrink-0 border-b border-border/60 pb-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white font-display text-sm font-bold shadow-xs">
-              GF
-            </span>
-            <span className="font-display text-sm font-bold text-ink">
-              Green Fibre
-            </span>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1 border border-border/80 shadow-xs overflow-hidden">
+              <img src={greenfibreLogo} alt="Green Fibre Logo" className="h-full w-full object-contain" />
+            </div>
+            <div>
+              <span className="font-display text-sm font-bold text-ink block leading-tight">
+                Green Fibre
+              </span>
+              <span className="text-[10px] uppercase tracking-wider text-ink-muted font-medium">
+                E-Commerce Hub
+              </span>
+            </div>
           </div>
 
           <button
