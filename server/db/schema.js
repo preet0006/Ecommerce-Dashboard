@@ -10,6 +10,7 @@ export const systemUsers = pgTable('system_users', {
   department:          varchar('department', { length: 100 }).default('Procurement'),
   avatar:              varchar('avatar', { length: 10 }).default('GF'),
   passwordHash:        varchar('password_hash', { length: 255 }),
+  password:            varchar('password', { length: 255 }),
   resetToken:          varchar('reset_token', { length: 64 }),
   resetTokenExpiresAt: timestamp('reset_token_expires_at'),
   lastLoginAt:         timestamp('last_login_at'),
