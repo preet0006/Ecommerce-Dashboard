@@ -43,14 +43,22 @@ export default function Login() {
         className="hidden lg:flex w-1/2 relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #092c1e 0%, #1F6E4C 55%, #3a9b6f 100%)' }}
       >
-        {/* Large watermark logo in background */}
-        <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-[520px] h-[520px] pointer-events-none select-none flex items-center justify-center opacity-[0.08] filter brightness-200">
-          <img src={greenfibreLogo} alt="" className="w-full h-full object-contain" />
+        {/* Large watermark leaves emblem in background */}
+        <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-[520px] h-[520px] pointer-events-none select-none flex items-center justify-center opacity-[0.09] filter brightness-200 overflow-hidden">
+          <img
+            src={greenfibreLogo}
+            alt=""
+            className="w-full h-full object-cover object-top scale-[1.35] -translate-y-[6%]"
+          />
         </div>
 
-        {/* Top-Right Shaded Watermark Badge (Circled area) */}
-        <div className="absolute right-8 top-10 w-44 h-44 rounded-full bg-white/[0.08] border border-white/15 p-7 flex items-center justify-center pointer-events-none select-none shadow-2xl backdrop-blur-xs">
-          <img src={greenfibreLogo} alt="" className="w-full h-full object-contain opacity-40 filter drop-shadow" />
+        {/* Top-Right Shaded Watermark Badge */}
+        <div className="absolute right-8 top-10 w-40 h-40 rounded-full bg-white/[0.08] border border-white/15 p-6 flex items-center justify-center pointer-events-none select-none shadow-2xl backdrop-blur-xs overflow-hidden">
+          <img
+            src={greenfibreLogo}
+            alt=""
+            className="w-full h-full object-cover object-top scale-[1.45] -translate-y-[6%] opacity-40 filter drop-shadow"
+          />
         </div>
 
         {/* Bottom subtle radial glow */}
@@ -64,10 +72,22 @@ export default function Login() {
 
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
           <div className="flex items-center gap-3 mb-8">
-            <div className="h-12 w-12 rounded-2xl bg-white p-1.5 shadow-xl flex items-center justify-center">
-              <img src={greenfibreLogo} alt="Green Fibre Logo" className="h-full w-full object-contain" />
+            <div className="h-12 w-12 rounded-2xl bg-white p-1.5 shadow-xl flex items-center justify-center overflow-hidden shrink-0">
+              <img
+                src={greenfibreLogo}
+                alt="Green Fibre Leaves Emblem"
+                className="h-full w-full object-cover object-top scale-[1.5] -translate-y-[6%]"
+              />
             </div>
-            <span className="font-display text-xl font-bold tracking-wide !text-white drop-shadow-sm">GREEN FIBRE</span>
+            <div className="flex flex-col">
+              <div className="font-display text-2xl font-bold tracking-tight text-white flex items-center gap-1.5">
+                <span className="text-emerald-300 font-extrabold">Green</span>
+                <span className="text-white font-medium">Fibre</span>
+              </div>
+              <span className="text-[10px] tracking-[0.22em] uppercase text-emerald-200/85 font-semibold">
+                Enterprise Dashboard
+              </span>
+            </div>
           </div>
           <h1 className="font-display text-4xl font-bold leading-tight mb-4 !text-white drop-shadow-sm">
             Welcome back to<br />your dashboard
@@ -82,12 +102,19 @@ export default function Login() {
       <div className="w-full lg:w-1/2 flex items-center justify-center px-6 sm:px-8 py-12 bg-surface">
         <div className="w-full max-w-sm">
           <div className="flex items-center gap-3 mb-6">
-            <div className="h-11 w-11 rounded-xl bg-white p-1 border border-border/80 shadow-xs flex items-center justify-center">
-              <img src={greenfibreLogo} alt="Green Fibre Logo" className="h-full w-full object-contain" />
+            <div className="h-11 w-11 rounded-xl bg-white p-1 border border-border/80 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+              <img
+                src={greenfibreLogo}
+                alt="Green Fibre Leaves Emblem"
+                className="h-full w-full object-cover object-top scale-[1.5] -translate-y-[6%]"
+              />
             </div>
-            <div>
-              <span className="font-display font-bold text-lg tracking-wide text-ink block leading-tight">GREEN FIBRE</span>
-              <span className="text-[10px] text-ink-muted font-medium uppercase tracking-wider">Team Portal</span>
+            <div className="flex flex-col">
+              <div className="font-display text-lg font-bold tracking-tight text-ink flex items-center gap-1.5 leading-tight">
+                <span className="text-primary font-extrabold">Green</span>
+                <span className="text-ink font-semibold">Fibre</span>
+              </div>
+              <span className="text-[10px] text-ink-muted font-medium uppercase tracking-[0.2em]">Team Portal</span>
             </div>
           </div>
 

@@ -65,12 +65,19 @@ export default function ResetPassword() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-bg text-ink">
       <div className="card max-w-md w-full p-8 shadow-xl border border-border animate-enter">
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-xl bg-white p-1 border border-border/80 shadow-xs flex items-center justify-center">
-            <img src={greenfibreLogo} alt="Green Fibre Logo" className="h-full w-full object-contain" />
+          <div className="h-11 w-11 rounded-xl bg-white p-1 border border-border/80 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+            <img
+              src={greenfibreLogo}
+              alt="Green Fibre Leaves Emblem"
+              className="h-full w-full object-cover object-top scale-[1.5] -translate-y-[6%]"
+            />
           </div>
-          <div>
-            <span className="font-display font-bold text-base tracking-wide text-ink block leading-tight">GREEN FIBRE</span>
-            <span className="text-[10px] text-ink-muted font-medium uppercase tracking-wider">Secure Password Reset</span>
+          <div className="flex flex-col">
+            <div className="font-display text-lg font-bold tracking-tight text-ink flex items-center gap-1.5 leading-tight">
+              <span className="text-primary font-extrabold">Green</span>
+              <span className="text-ink font-semibold">Fibre</span>
+            </div>
+            <span className="text-[10px] text-ink-muted font-medium uppercase tracking-[0.2em]">Secure Password Reset</span>
           </div>
         </div>
 

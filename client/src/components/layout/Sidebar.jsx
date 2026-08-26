@@ -47,14 +47,19 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="flex items-center justify-between px-2 mb-6 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1 border border-border/80 shadow-xs overflow-hidden">
-            <img src={greenfibreLogo} alt="Green Fibre Logo" className="h-full w-full object-contain" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-1 border border-border/80 shadow-xs overflow-hidden shrink-0">
+            <img
+              src={greenfibreLogo}
+              alt="Green Fibre Leaves Emblem"
+              className="h-full w-full object-cover object-top scale-[1.5] -translate-y-[6%]"
+            />
           </div>
-          <div>
-            <div className="font-display text-sm font-bold tracking-tight text-ink">
-              GREEN FIBRE
+          <div className="flex flex-col">
+            <div className="font-display text-base font-bold tracking-tight text-ink flex items-center gap-1 leading-tight">
+              <span className="text-primary font-extrabold">Green</span>
+              <span className="text-ink font-semibold">Fibre</span>
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-ink-muted font-medium">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-medium">
               E-Commerce Hub
             </div>
           </div>
@@ -173,14 +178,19 @@ export function MobileSidebarDrawer({ open, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-1 mb-5 shrink-0 border-b border-border/60 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1 border border-border/80 shadow-xs overflow-hidden">
-              <img src={greenfibreLogo} alt="Green Fibre Logo" className="h-full w-full object-contain" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white p-1 border border-border/80 shadow-xs overflow-hidden shrink-0">
+              <img
+                src={greenfibreLogo}
+                alt="Green Fibre Leaves Emblem"
+                className="h-full w-full object-cover object-top scale-[1.5] -translate-y-[6%]"
+              />
             </div>
-            <div>
-              <span className="font-display text-sm font-bold text-ink block leading-tight">
-                Green Fibre
-              </span>
-              <span className="text-[10px] uppercase tracking-wider text-ink-muted font-medium">
+            <div className="flex flex-col">
+              <div className="font-display text-base font-bold tracking-tight text-ink flex items-center gap-1 leading-tight">
+                <span className="text-primary font-extrabold">Green</span>
+                <span className="text-ink font-semibold">Fibre</span>
+              </div>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-ink-muted font-medium">
                 E-Commerce Hub
               </span>
             </div>
