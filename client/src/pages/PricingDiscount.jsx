@@ -347,35 +347,31 @@ function DiscountSimulator({ rows, onSubmitted }) {
   );
 }
 
+/* ---------------- Approval Status Pill ---------------- */
+function ApprovalStatusPill({ status }) {
+  if (status === 'approved') {
+    return <span className="badge-ok flex items-center gap-1"><CheckCircle2 size={14} /> Approved</span>;
+  }
+  if (status === 'rejected') {
+    return <span className="badge-danger flex items-center gap-1"><XCircle size={14} /> Rejected</span>;
+  }
+  return <span className="badge-warn flex items-center gap-1"><Clock size={14} /> Waiting for approval</span>;
+}
+
 /* ---------------- Price Change Approval Queue ---------------- */
-function PriceApprovalQueue({ items = [], onDecided, isLoading = false }) {
-  const [decidingId, setDecidingId] = useState(null);
-
-  const handleDecision = async (id, action) => {
-    try {
-      setDecidingId(id);
-      await decidePriceChange(id, action);
-      if (onDecided) onDecided();
-    } catch (err) {
-      console.error('[handleDecision error]', err);
-    } finally {
-      setDecidingId(null);
-    }
-  };
-
+function PriceApprovalQueue({ items = [], isLoading = false }) {
   return (
     <div className="flex flex-col gap-4 animate-enter">
       {isLoading ? (
-        <div className="card p-8 text-center text-ink-muted">Loading pending approval requests...</div>
+        <div className="card p-8 text-center text-ink-muted">Loading approval requests...</div>
       ) : items.length === 0 ? (
-        <div className="card p-8 text-center text-ink-muted">No price changes waiting for approval.</div>
+        <div className="card p-8 text-center text-ink-muted">No price change requests recorded yet.</div>
       ) : (
         items.map((item) => {
           const fromPrice = Number(item.fromPrice ?? item.from ?? 0);
           const toPrice = Number(item.toPrice ?? item.to ?? 0);
           const margin = Number(item.marginAfterPct ?? item.marginAfter ?? 0);
           const pct = fromPrice > 0 ? (((toPrice - fromPrice) / fromPrice) * 100).toFixed(1) : 0;
-          const isDeciding = decidingId === item.id;
 
           return (
             <div key={item.id} className="card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -407,23 +403,8 @@ function PriceApprovalQueue({ items = [], onDecided, isLoading = false }) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  className="btn-outline flex items-center gap-1.5"
-                  onClick={() => handleDecision(item.id, 'reject')}
-                  disabled={isDeciding}
-                >
-                  <XCircle size={16} /> Reject
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary flex items-center gap-1.5"
-                  onClick={() => handleDecision(item.id, 'approve')}
-                  disabled={isDeciding}
-                >
-                  <CheckCircle2 size={16} /> Approve & Publish
-                </button>
+              <div className="shrink-0">
+                <ApprovalStatusPill status={item.status} />
               </div>
             </div>
           );
@@ -511,7 +492,7 @@ function PriceHistory({ rows = [], isLoading = false }) {
 /* ---------------- Main Page ---------------- */
 export default function PricingDiscounts() {
   const [activeTab, setActiveTab] = useState('channel');
-  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [approvalRequests, setApprovalRequests] = useState([]);
   const [priceHistory, setPriceHistory] = useState([]);
   const [priceOverrides, setPriceOverrides] = useState({});
   const [loadingApprovals, setLoadingApprovals] = useState(false);
@@ -535,20 +516,20 @@ export default function PricingDiscounts() {
     }
   }, []);
 
-  // Fetch pending approvals for Queue
-  const fetchPendingApprovals = useCallback(async () => {
+  // Fetch all price changes for Approval Queue (showing pending, approved, rejected)
+  const fetchApprovalRequests = useCallback(async () => {
     try {
       setLoadingApprovals(true);
-      const data = await getPriceChanges('pending');
-      setPendingApprovals(Array.isArray(data) ? data : []);
+      const data = await getPriceChanges();
+      setApprovalRequests(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('[fetchPendingApprovals error]', err);
+      console.error('[fetchApprovalRequests error]', err);
     } finally {
       setLoadingApprovals(false);
     }
   }, []);
 
-  // Fetch all price changes for History
+  // Fetch all decided price changes for History
   const fetchPriceHistory = useCallback(async () => {
     try {
       setLoadingHistory(true);
@@ -563,26 +544,24 @@ export default function PricingDiscounts() {
     }
   }, []);
 
-  // On mount: fetch approved overrides
+  // On mount: fetch approved overrides and approval requests
   useEffect(() => {
     fetchApprovedOverrides();
-  }, [fetchApprovedOverrides]);
+    fetchApprovalRequests();
+  }, [fetchApprovedOverrides, fetchApprovalRequests]);
 
   // When tab changes, fetch relevant data
   useEffect(() => {
     if (activeTab === 'approval') {
-      fetchPendingApprovals();
+      fetchApprovalRequests();
     } else if (activeTab === 'history') {
       fetchPriceHistory();
     } else if (activeTab === 'channel') {
       fetchApprovedOverrides();
     }
-  }, [activeTab, fetchPendingApprovals, fetchPriceHistory, fetchApprovedOverrides]);
+  }, [activeTab, fetchApprovalRequests, fetchPriceHistory, fetchApprovedOverrides]);
 
-  const handleDecisionComplete = () => {
-    fetchPendingApprovals();
-    fetchApprovedOverrides();
-  };
+  const pendingCount = approvalRequests.filter(item => item.status === 'pending').length;
 
   return (
     <div className="min-h-screen p-6" style={{ background: 'var(--color-bg)' }}>
@@ -603,9 +582,9 @@ export default function PricingDiscounts() {
               style={active ? { borderBottom: '2px solid var(--color-primary)' } : { borderBottom: '2px solid transparent' }}
             >
               <Icon size={15} /> {tab.label}
-              {tab.id === 'approval' && pendingApprovals.length > 0 && (
+              {tab.id === 'approval' && pendingCount > 0 && (
                 <span className="badge-warn ml-1.5 text-xs px-1.5 py-0.5 rounded-full">
-                  {pendingApprovals.length}
+                  {pendingCount}
                 </span>
               )}
             </button>
@@ -620,16 +599,15 @@ export default function PricingDiscounts() {
         <DiscountSimulator
           rows={UNIFIED_PRODUCTS}
           onSubmitted={() => {
-            fetchPendingApprovals();
+            fetchApprovalRequests();
             fetchApprovedOverrides();
           }}
         />
       )}
       {activeTab === 'approval' && (
         <PriceApprovalQueue
-          items={pendingApprovals}
+          items={approvalRequests}
           isLoading={loadingApprovals}
-          onDecided={handleDecisionComplete}
         />
       )}
       {activeTab === 'history' && (
