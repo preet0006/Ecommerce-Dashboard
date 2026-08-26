@@ -10,6 +10,13 @@ function baseUrl() {
   return process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3001}`;
 }
 
+function getAdminApprover() {
+  const name = process.env.ADMIN_APPROVAL_NAME || 'Rohit Malhotra';
+  const email = process.env.ADMIN_APPROVAL_EMAIL || 'malhotrarohit85628@gmail.com';
+  if (name && email) return `${name} (${email})`;
+  return name || email || 'Rohit Malhotra (malhotrarohit85628@gmail.com)';
+}
+
 let tableChecked = false;
 async function ensureTable() {
   if (tableChecked) return;
@@ -29,10 +36,12 @@ async function ensureTable() {
         token_expires_at TIMESTAMP,
         decided_at TIMESTAMP,
         decided_via VARCHAR(20),
+        decided_by VARCHAR(150),
         email_status VARCHAR(20) DEFAULT 'sent',
         email_preview_url TEXT,
         created_at TIMESTAMP DEFAULT NOW() NOT NULL
       );
+      ALTER TABLE price_changes ADD COLUMN IF NOT EXISTS decided_by VARCHAR(150);
     `);
     tableChecked = true;
   } catch (err) {
@@ -130,10 +139,12 @@ export async function decideByToken(req, res) {
     }
 
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    const approver = getAdminApprover();
     await db.update(priceChanges).set({
       status: newStatus,
       decidedAt: new Date(),
       decidedVia: 'email',
+      decidedBy: approver,
       approvalToken: null, // invalidate — one-time use
     }).where(eq(priceChanges.id, Number(id)));
 
@@ -162,10 +173,12 @@ export async function decideFromDashboard(req, res) {
     if (row.status !== 'pending') return res.status(409).json({ message: `Already ${row.status}` });
 
     const newStatus = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'withdrawn';
+    const approver = action === 'withdraw' ? 'Withdrawn by Team' : (req.body.decidedBy || getAdminApprover());
     const [updated] = await db.update(priceChanges).set({
       status: newStatus,
       decidedAt: new Date(),
       decidedVia: 'dashboard',
+      decidedBy: approver,
       approvalToken: null,
     }).where(eq(priceChanges.id, Number(id))).returning();
 
@@ -174,4 +187,5 @@ export async function decideFromDashboard(req, res) {
     res.status(500).json({ message: 'Failed to decide price change', error: err.message });
   }
 }
+
 

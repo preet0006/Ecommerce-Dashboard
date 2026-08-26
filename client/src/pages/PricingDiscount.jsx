@@ -465,11 +465,13 @@ function PriceHistory({ rows = [], isLoading = false }) {
                 ? new Date(r.createdAt).toISOString().split('T')[0]
                 : r.date || '—';
 
-              const byDisplay = r.decidedVia === 'email'
-                ? 'Approved via email'
-                : r.decidedVia === 'dashboard'
-                ? 'Dashboard'
-                : r.by || r.requestedBy || 'Team';
+              const byDisplay = r.decidedBy || (
+                r.decidedVia === 'email'
+                  ? 'Rohit Malhotra (malhotrarohit85628@gmail.com)'
+                  : r.decidedVia === 'dashboard'
+                  ? 'Dashboard Admin'
+                  : r.by || r.requestedBy || 'Team'
+              );
 
               const isApproved = r.status === 'approved';
               const isWithdrawn = r.status === 'withdrawn';
@@ -497,9 +499,15 @@ function PriceHistory({ rows = [], isLoading = false }) {
                       {r.status || 'approved'}
                     </span>
                   </td>
-                  <td className="text-ink-muted">{byDisplay}</td>
+                  <td className="text-ink">
+                    <div className="font-medium text-xs text-ink">{byDisplay}</div>
+                    {r.decidedVia && (
+                      <div className="text-[11px] text-ink-muted capitalize">via {r.decidedVia}</div>
+                    )}
+                  </td>
                 </tr>
               );
+
             })}
           </tbody>
         </table>

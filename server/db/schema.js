@@ -124,6 +124,7 @@ export const priceChanges = pgTable('price_changes', {
   tokenExpiresAt: timestamp('token_expires_at'),
   decidedAt:      timestamp('decided_at'),
   decidedVia:     varchar('decided_via', { length: 20 }),               // 'email' | 'dashboard'
+  decidedBy:      varchar('decided_by', { length: 150 }),
   emailStatus:    varchar('email_status', { length: 20 }).default('sent'),
   emailPreviewUrl: text('email_preview_url'),
   createdAt:      timestamp('created_at').defaultNow().notNull(),
