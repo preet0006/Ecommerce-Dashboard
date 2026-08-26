@@ -58,12 +58,23 @@ export default function ProductMaster() {
   }, []);
 
   const handleSave = (form, mode) => {
+    const sp = Number(form.sellingPrice) || 0;
+    const lc = Number(form.landedCost) || 0;
+    const autoContribution = sp > 0 ? ((sp - lc) / sp) * 100 : 0;
+
     if (mode === 'add') {
       const newProduct = {
-        id: form.id, name: form.name, category: form.category,
-        mrp: Number(form.mrp) || 0, gst: Number(form.gst) || 0,
-        weight: Number(form.weight) || 0, dimensions: form.dimensions,
-        sellingPrice: 0, landedCost: 0, contributionPct: 0, stock: 0,
+        id: form.id,
+        name: form.name,
+        category: form.category,
+        mrp: Number(form.mrp) || 0,
+        sellingPrice: sp,
+        landedCost: lc,
+        contributionPct: autoContribution,
+        stock: Number(form.stock) || 0,
+        gst: Number(form.gst) || 0,
+        weight: Number(form.weight) || 0,
+        dimensions: form.dimensions || '',
       };
       setProducts(prev => [...prev, newProduct]);
     } else {
@@ -75,6 +86,16 @@ export default function ProductMaster() {
                 name: form.name,
                 category: form.category,
                 mrp: Number(form.mrp) || p.mrp,
+                sellingPrice: form.sellingPrice !== '' ? Number(form.sellingPrice) : p.sellingPrice,
+                landedCost: form.landedCost !== '' ? Number(form.landedCost) : p.landedCost,
+                contributionPct:
+                  (form.sellingPrice !== '' ? Number(form.sellingPrice) : p.sellingPrice) > 0
+                    ? (((form.sellingPrice !== '' ? Number(form.sellingPrice) : p.sellingPrice) -
+                        (form.landedCost !== '' ? Number(form.landedCost) : p.landedCost)) /
+                        (form.sellingPrice !== '' ? Number(form.sellingPrice) : p.sellingPrice)) *
+                      100
+                    : 0,
+                stock: form.stock !== '' ? Number(form.stock) : p.stock,
                 gst: Number(form.gst) || p.gst,
                 weight: Number(form.weight) || p.weight,
                 dimensions: form.dimensions || p.dimensions,

@@ -47,48 +47,54 @@ export default function ProductList({ products, onSelect, onAddNew, onViewCost, 
           </tr>
         </thead>
         <tbody>
-          {filtered.map((p) => (
-            <tr
-              key={p.id}
-              onClick={() => onViewCost(p)}
-              onMouseEnter={() => setHoveredId(p.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              style={{
-                cursor: 'pointer',
-                background: hoveredId === p.id ? 'rgba(34, 102, 68, 0.10)' : '',
-                transition: 'background 0.18s ease',
-              }}
-              title="Click to view Cost Breakdown"
-            >
-              <td className="font-mono text-xs text-ink-muted">{p.id}</td>
-              <td className="font-medium">{p.name}</td>
-              <td>{p.category}</td>
-              <td>₹{p.mrp.toLocaleString('en-IN')}</td>
-              <td>₹{p.sellingPrice.toLocaleString('en-IN')}</td>
-              <td>₹{p.landedCost.toLocaleString('en-IN')}</td>
-              <td>{marginBadge(p.contributionPct)}</td>
-              <td>{p.stock.toLocaleString('en-IN')}</td>
-              <td>
-                <div className="flex items-center gap-1 justify-end">
-                  <button
-                    className="btn-ghost !px-2"
-                    title="Edit product"
-                    onClick={(e) => { e.stopPropagation(); onSelect(p); }}
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    className="btn-ghost !px-2"
-                    title="Delete"
-                    style={{ color: 'var(--color-danger, #e53e3e)' }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
+          {filtered.map((p) => {
+            const sp = Number(p.sellingPrice) || 0;
+            const lc = Number(p.landedCost) || 0;
+            const autoContributionPct = sp > 0 ? ((sp - lc) / sp) * 100 : (Number(p.contributionPct) || 0);
+
+            return (
+              <tr
+                key={p.id}
+                onClick={() => onViewCost(p)}
+                onMouseEnter={() => setHoveredId(p.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                style={{
+                  cursor: 'pointer',
+                  background: hoveredId === p.id ? 'rgba(34, 102, 68, 0.10)' : '',
+                  transition: 'background 0.18s ease',
+                }}
+                title="Click to view Cost Breakdown"
+              >
+                <td className="font-mono text-xs text-ink-muted">{p.id}</td>
+                <td className="font-medium">{p.name}</td>
+                <td>{p.category}</td>
+                <td>₹{Number(p.mrp || 0).toLocaleString('en-IN')}</td>
+                <td>₹{sp.toLocaleString('en-IN')}</td>
+                <td>₹{lc.toLocaleString('en-IN')}</td>
+                <td>{marginBadge(autoContributionPct)}</td>
+                <td>{Number(p.stock || 0).toLocaleString('en-IN')}</td>
+                <td>
+                  <div className="flex items-center gap-1 justify-end">
+                    <button
+                      className="btn-ghost !px-2"
+                      title="Edit product"
+                      onClick={(e) => { e.stopPropagation(); onSelect(p); }}
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      className="btn-ghost !px-2"
+                      title="Delete"
+                      style={{ color: 'var(--color-danger, #e53e3e)' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
           {filtered.length === 0 && (
             <tr>
               <td colSpan={9} className="text-center text-ink-muted py-8">
