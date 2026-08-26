@@ -12,11 +12,13 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.36.4",
     "express": "^4.19.2",
     "groq-sdk": "^1.6.0",
+    "jsonwebtoken": "^9.0.3",
     "nodemailer": "^9.0.5"
   },
   "devDependencies": {

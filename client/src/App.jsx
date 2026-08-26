@@ -13,6 +13,11 @@ import {
   Sparkles
 } from "lucide-react";
 
+import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import RequireAuth from "./components/auth/RequireAuth";
+
 import Home from "./pages/Home";
 import ProductMaster from "./pages/ProductMaster";
 import VendorMaster from "./pages/Vendors";
@@ -107,9 +112,24 @@ export default function App() {
     <ThemeProvider>
       <FontProvider>
         <BrowserRouter>
-          <AppContent />
+          <Routes>
+            {/* Public Unprotected Auth Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Protected Dashboard Routes */}
+            <Route
+              path="/*"
+              element={
+                <RequireAuth>
+                  <AppContent />
+                </RequireAuth>
+              }
+            />
+          </Routes>
         </BrowserRouter>
       </FontProvider>
     </ThemeProvider>
   );
-}
+}

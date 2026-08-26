@@ -20,6 +20,15 @@ export async function initTables() {
         updated_at TIMESTAMP DEFAULT NOW() NOT NULL
       );
     `);
+    await db.execute(`
+      ALTER TABLE system_users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)
+    `);
+    await db.execute(`
+      ALTER TABLE system_users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(64)
+    `);
+    await db.execute(`
+      ALTER TABLE system_users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP
+    `);
 
     // Seed default Admin and Reader users if table is empty
     await db.execute(`

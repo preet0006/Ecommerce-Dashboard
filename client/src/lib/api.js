@@ -4,12 +4,37 @@ const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 // Set VITE_USE_MOCK=false in your .env once the real endpoints below exist.
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+export function getStoredToken() {
+  return localStorage.getItem('gf_auth_token') || sessionStorage.getItem('gf_auth_token');
+}
+
+export function getStoredUser() {
+  try {
+    const raw = localStorage.getItem('gf_auth_user') || sessionStorage.getItem('gf_auth_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function logout() {
+  localStorage.removeItem('gf_auth_token');
+  localStorage.removeItem('gf_auth_user');
+  sessionStorage.removeItem('gf_auth_token');
+  sessionStorage.removeItem('gf_auth_user');
+}
 
 async function request(path, options = {}) {
+  const token = getStoredToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {}),
+  };
+
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers,
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ message: res.statusText }));
@@ -17,6 +42,7 @@ async function request(path, options = {}) {
   }
   return res.json();
 }
+
 
 export const api = {
   getKpis: async () => {
@@ -187,7 +213,29 @@ export const api = {
 
   withdrawPriceChange: (id) =>
     request(`/price-changes/${id}/decide`, { method: 'POST', body: JSON.stringify({ action: 'withdraw' }) }),
+  // ── Auth API ──────────────────────────────────────────────────────────
+  login: (email, password) =>
+    request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+
+  requestPasswordReset: (email) =>
+    request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  resetPassword: (email, token, newPassword) =>
+    request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, token, newPassword }) }),
+
+  getAuthMe: () => request('/auth/me'),
 };
+
+export const login = (email, password) =>
+  request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+
+export const requestPasswordReset = (email) =>
+  request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+
+export const resetPassword = (email, token, newPassword) =>
+  request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, token, newPassword }) });
+
+export const getAuthMe = () => request('/auth/me');
 
 export const createPriceChangeRequest = (payload) =>
   request('/price-changes', { method: 'POST', body: JSON.stringify(payload) });
@@ -202,3 +250,4 @@ export const decidePriceChange = (id, action) =>
 
 export const withdrawPriceChange = (id) =>
   request(`/price-changes/${id}/decide`, { method: 'POST', body: JSON.stringify({ action: 'withdraw' }) });
+

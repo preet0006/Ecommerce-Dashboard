@@ -1,30 +1,41 @@
+import bcrypt from 'bcryptjs';
 import { db } from '../db/index.js';
 import * as schema from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 
 /**
- * GET /api/settings/users — Fetch all system team members
+ * GET /api/settings/users — Fetch all registered team members
  */
-export async function getSystemUsers(_req, res) {
+export async function getSystemUsers(req, res) {
   try {
     const users = await db
-      .select()
+      .select({
+        id: schema.systemUsers.id,
+        name: schema.systemUsers.name,
+        email: schema.systemUsers.email,
+        role: schema.systemUsers.role,
+        status: schema.systemUsers.status,
+        department: schema.systemUsers.department,
+        avatar: schema.systemUsers.avatar,
+        lastLoginAt: schema.systemUsers.lastLoginAt,
+        createdAt: schema.systemUsers.createdAt,
+      })
       .from(schema.systemUsers)
       .orderBy(desc(schema.systemUsers.createdAt));
 
     return res.json(users);
   } catch (err) {
     console.error('[settingsController.getSystemUsers]', err);
-    return res.status(500).json({ message: 'Failed to fetch team members', error: err.message });
+    return res.status(500).json({ message: 'Failed to fetch users', error: err.message });
   }
 }
 
 /**
- * POST /api/settings/users — Add a new team member with role (Admin vs Reader)
+ * POST /api/settings/users — Create a new system user
  */
 export async function createSystemUser(req, res) {
   try {
-    const { name, email, role = 'reader', department = 'Procurement', status = 'active' } = req.body;
+    const { name, email, role = 'reader', department = 'Procurement', status = 'active', password } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Name is required' });
@@ -53,6 +64,8 @@ export async function createSystemUser(req, res) {
       return res.status(409).json({ message: `A user with email ${cleanEmail} already exists` });
     }
 
+    const passwordHash = password ? await bcrypt.hash(password, 10) : null;
+
     const [created] = await db
       .insert(schema.systemUsers)
       .values({
@@ -62,7 +75,7 @@ export async function createSystemUser(req, res) {
         department: department.trim() || 'Procurement',
         avatar,
         status,
-        lastLoginAt: new Date(),
+        passwordHash,
       })
       .returning();
 

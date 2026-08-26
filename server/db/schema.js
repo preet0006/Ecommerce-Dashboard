@@ -2,16 +2,19 @@ import { pgTable, serial, varchar, text, integer, numeric, timestamp, unique } f
 
 // ─── System Users (Role-Based Access Control) ───────────────────────────────
 export const systemUsers = pgTable('system_users', {
-  id:           serial('id').primaryKey(),
-  name:         varchar('name', { length: 150 }).notNull(),
-  email:        varchar('email', { length: 150 }).notNull().unique(),
-  role:         varchar('role', { length: 30 }).default('reader').notNull(), // 'admin' | 'manager' | 'reader'
-  status:       varchar('status', { length: 30 }).default('active').notNull(), // 'active' | 'inactive'
-  department:   varchar('department', { length: 100 }).default('Procurement'),
-  avatar:       varchar('avatar', { length: 10 }).default('GF'),
-  lastLoginAt:  timestamp('last_login_at'),
-  createdAt:    timestamp('created_at').defaultNow().notNull(),
-  updatedAt:    timestamp('updated_at').defaultNow().notNull(),
+  id:                  serial('id').primaryKey(),
+  name:                varchar('name', { length: 150 }).notNull(),
+  email:               varchar('email', { length: 150 }).notNull().unique(),
+  role:                varchar('role', { length: 30 }).default('reader').notNull(), // 'admin' | 'manager' | 'reader'
+  status:              varchar('status', { length: 30 }).default('active').notNull(), // 'active' | 'inactive'
+  department:          varchar('department', { length: 100 }).default('Procurement'),
+  avatar:              varchar('avatar', { length: 10 }).default('GF'),
+  passwordHash:        varchar('password_hash', { length: 255 }),
+  resetToken:          varchar('reset_token', { length: 64 }),
+  resetTokenExpiresAt: timestamp('reset_token_expires_at'),
+  lastLoginAt:         timestamp('last_login_at'),
+  createdAt:           timestamp('created_at').defaultNow().notNull(),
+  updatedAt:           timestamp('updated_at').defaultNow().notNull(),
 });
 
 // ─── Application Global Settings ────────────────────────────────────────────

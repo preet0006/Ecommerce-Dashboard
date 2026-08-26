@@ -626,3 +626,37 @@ export async function sendPriceChangeApprovalEmail({ to, priceChange, approveUrl
   return { success: true, messageId: info.messageId, previewUrl: previewUrl || null };
 }
 
+export async function sendPasswordResetEmail({ to, name, resetUrl }) {
+  const transporter = await getTransporter();
+  const sender = process.env.SMTP_FROM || '"GreenFibre" <no-reply@greenfibre.com>';
+
+  const html = `
+<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:24px 0;background:#edf2ee;font-family:-apple-system,sans-serif;color:#16231d;">
+  <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #d8e2dc;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#092c1e 0%,#135235 100%);padding:26px 32px;">
+      <span style="color:#fff;font-size:19px;font-weight:800;">GREEN FIBRE</span>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="font-size:15px;margin:0 0 18px 0;">Hi ${name || ''}, click below to set a new password. This link expires in 1 hour and can only be used once.</p>
+      <a href="${resetUrl}" style="background:#092c1e;color:#fff;text-decoration:none;padding:13px 26px;border-radius:10px;font-weight:700;font-size:14px;display:inline-block;">Reset Password</a>
+      <p style="font-size:12px;color:#7a8f83;margin-top:22px;">If you didn't request this, you can safely ignore this email.</p>
+    </div>
+  </div>
+</body></html>`;
+
+  const info = await transporter.sendMail({
+    from: sender,
+    to,
+    subject: 'Reset your Green Fibre password',
+    text: `Reset your password: ${resetUrl}`,
+    html,
+  });
+
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+  console.log(`✉️ Password reset email sent to ${to}`);
+  if (previewUrl) console.log(`🔗 Ethereal Preview: ${previewUrl}`);
+  return { success: true, previewUrl: previewUrl || null };
+}
+
+

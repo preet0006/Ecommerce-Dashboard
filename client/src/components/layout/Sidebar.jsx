@@ -13,10 +13,12 @@ import {
   ShoppingBag,
   X,
   Sun,
-  Moon
+  Moon,
+  LogOut,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext";
+import { logout } from "../../lib/api";
 
 export const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
@@ -32,25 +34,33 @@ export const NAV_ITEMS = [
 
 export default function Sidebar() {
   const { isDark, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <aside className="hidden lg:flex w-60 shrink-0 flex-col border-r border-border bg-surface p-4 sticky top-0 h-screen overflow-y-auto z-30 select-none transition-colors">
       {/* Logo */}
       <div className="flex items-center justify-between px-2 mb-6 shrink-0">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white font-display text-sm font-bold shadow-xs">
-            GF
-          </span>
-          <div className="flex flex-col">
-            <span className="font-display text-sm font-bold text-ink leading-tight">
-              Green Fibre
-            </span>
-            <span className="text-[10px] text-ink-muted">Procurement ERP</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white shadow-sm">
+            <span className="font-display text-sm font-bold tracking-wider">GF</span>
+          </div>
+          <div>
+            <div className="font-display text-sm font-bold tracking-tight text-ink">
+              GREEN FIBRE
+            </div>
+            <div className="text-[10px] uppercase tracking-wider text-ink-muted font-medium">
+              E-Commerce Hub
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Navigation */}
+      {/* Nav List */}
       <nav className="flex flex-col gap-1 flex-1">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -63,13 +73,13 @@ export default function Sidebar() {
               }
             >
               <Icon className="h-4 w-4 shrink-0" />
-              <span className="truncate">{item.label}</span>
+              <span>{item.label}</span>
             </NavLink>
           );
         })}
       </nav>
 
-      {/* Bottom Navigation */}
+      {/* Sidebar Footer */}
       <div className="mt-auto pt-4 flex flex-col gap-1 shrink-0 border-t border-border/60">
         <NavLink
           to="/ai"
@@ -104,6 +114,17 @@ export default function Sidebar() {
           <span className="text-[10px] font-mono text-ink-muted uppercase">
             {isDark ? "Dark" : "Light"}
           </span>
+        </button>
+
+        {/* Logout */}
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="sidebar-link !text-red hover:!bg-red-soft/30 transition-colors mt-1"
+          title="Sign out of your account"
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          <span>Log Out</span>
         </button>
       </div>
     </aside>
@@ -214,6 +235,18 @@ export function MobileSidebarDrawer({ open, onClose }) {
             <span className="text-[10px] font-mono text-ink-muted uppercase">
               {isDark ? "Dark" : "Light"}
             </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              handleLogout();
+            }}
+            className="sidebar-link !text-red hover:!bg-red-soft/30 transition-colors mt-1"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span>Log Out</span>
           </button>
         </div>
       </div>

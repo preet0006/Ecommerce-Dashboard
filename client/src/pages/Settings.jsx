@@ -72,6 +72,7 @@ export default function Settings() {
       role: 'reader',
       department: 'Procurement',
       status: 'active',
+      password: '',
     });
     setFormError(null);
     setUserModalOpen(true);
@@ -642,6 +643,22 @@ export default function Settings() {
                   onChange={(e) => setUserForm((f) => ({ ...f, department: e.target.value }))}
                 />
               </div>
+
+              {!editingUser && (
+                <div>
+                  <label className="label">Initial Password (Optional)</label>
+                  <input
+                    type="password"
+                    className="input"
+                    placeholder="Leave blank or set a temporary password"
+                    value={userForm.password || ''}
+                    onChange={(e) => setUserForm((f) => ({ ...f, password: e.target.value }))}
+                  />
+                  <p className="text-[11px] text-ink-muted mt-1">
+                    If left blank, user can use "Forgot Password" with their email to set their password.
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2.5 mt-3 pt-3 border-t border-border">
                 <button
