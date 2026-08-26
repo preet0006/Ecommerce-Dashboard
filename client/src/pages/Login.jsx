@@ -38,32 +38,41 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-stretch bg-bg text-ink">
-      {/* Left — branded illustrated panel */}
+      {/* Left — branded illustrated panel with watermark */}
       <div
         className="hidden lg:flex w-1/2 relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #092c1e 0%, #1F6E4C 55%, #3a9b6f 100%)' }}
       >
-        {/* Decorative abstract shapes */}
+        {/* Large watermark logo in background */}
+        <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-[520px] h-[520px] pointer-events-none select-none flex items-center justify-center opacity-[0.08] filter brightness-200">
+          <img src={greenfibreLogo} alt="" className="w-full h-full object-contain" />
+        </div>
+
+        {/* Top-Right Shaded Watermark Badge (Circled area) */}
+        <div className="absolute right-8 top-10 w-44 h-44 rounded-full bg-white/[0.08] border border-white/15 p-7 flex items-center justify-center pointer-events-none select-none shadow-2xl backdrop-blur-xs">
+          <img src={greenfibreLogo} alt="" className="w-full h-full object-contain opacity-40 filter drop-shadow" />
+        </div>
+
+        {/* Bottom subtle radial glow */}
         <div
-          className="absolute -left-10 -bottom-10 w-72 h-72 rounded-full opacity-20"
+          className="absolute -left-10 -bottom-10 w-80 h-80 rounded-full opacity-20 pointer-events-none"
           style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }}
         />
-        <div className="absolute right-10 top-16 w-40 h-40 rounded-full opacity-10 bg-white" />
         <svg className="absolute bottom-0 left-0 w-full opacity-30 pointer-events-none" viewBox="0 0 500 200" fill="none">
           <path d="M0 150 Q 60 100 120 150 T 240 150 T 360 150 T 500 120" stroke="white" strokeWidth="2" strokeLinecap="round" strokeDasharray="6 10" />
         </svg>
 
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
           <div className="flex items-center gap-3 mb-8">
-            <div className="h-12 w-12 rounded-2xl bg-white p-1.5 shadow-lg flex items-center justify-center">
+            <div className="h-12 w-12 rounded-2xl bg-white p-1.5 shadow-xl flex items-center justify-center">
               <img src={greenfibreLogo} alt="Green Fibre Logo" className="h-full w-full object-contain" />
             </div>
-            <span className="font-display text-xl font-bold tracking-wide">GREEN FIBRE</span>
+            <span className="font-display text-xl font-bold tracking-wide !text-white drop-shadow-sm">GREEN FIBRE</span>
           </div>
-          <h1 className="font-display text-4xl font-bold leading-tight mb-4">
+          <h1 className="font-display text-4xl font-bold leading-tight mb-4 !text-white drop-shadow-sm">
             Welcome back to<br />your dashboard
           </h1>
-          <p className="text-white/80 max-w-sm leading-relaxed text-sm">
+          <p className="text-white/90 max-w-sm leading-relaxed text-sm font-normal">
             Manage vendors, inventory, pricing, and orders across every channel — Amazon, Flipkart, and your own store — from one place.
           </p>
         </div>
