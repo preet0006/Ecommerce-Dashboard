@@ -30,6 +30,27 @@ export const NAV_ITEMS = [
   { label: "Channel Orders", icon: ShoppingBag, path: "/channel-orders" },
 ];
 
+// Route prefetch map for ultra-fast instant hover loading
+const routePrefetchMap = {
+  "/": () => import("../../pages/Home"),
+  "/products": () => import("../../pages/ProductMaster"),
+  "/vendors": () => import("../../pages/Vendors"),
+  "/purchase": () => import("../../pages/Purchase"),
+  "/pricing": () => import("../../pages/PricingDiscount"),
+  "/inventory": () => import("../../pages/Inventory"),
+  "/reports": () => import("../../pages/Reports"),
+  "/forecasting": () => import("../../pages/Forecasting"),
+  "/channel-orders": () => import("../../pages/ChannelOrders"),
+  "/ai": () => import("../../pages/AskAI"),
+  "/settings": () => import("../../pages/Settings"),
+};
+
+const prefetchRoute = (path) => {
+  try {
+    routePrefetchMap[path]?.();
+  } catch {}
+};
+
 export default function Sidebar() {
   const { isDark, toggleTheme } = useTheme();
 
@@ -58,6 +79,8 @@ export default function Sidebar() {
             <NavLink
               key={item.label}
               to={item.path}
+              onMouseEnter={() => prefetchRoute(item.path)}
+              onFocus={() => prefetchRoute(item.path)}
               className={({ isActive }) =>
                 isActive ? "sidebar-link-active" : "sidebar-link"
               }
@@ -73,6 +96,8 @@ export default function Sidebar() {
       <div className="mt-auto pt-4 flex flex-col gap-1 shrink-0 border-t border-border/60">
         <NavLink
           to="/ai"
+          onMouseEnter={() => prefetchRoute("/ai")}
+          onFocus={() => prefetchRoute("/ai")}
           className={({ isActive }) =>
             isActive ? "sidebar-link-active" : "sidebar-link"
           }
@@ -83,6 +108,8 @@ export default function Sidebar() {
 
         <NavLink
           to="/settings"
+          onMouseEnter={() => prefetchRoute("/settings")}
+          onFocus={() => prefetchRoute("/settings")}
           className={({ isActive }) =>
             isActive ? "sidebar-link-active" : "sidebar-link"
           }
@@ -95,7 +122,7 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={toggleTheme}
-          className="sidebar-link !justify-between mt-1 text-xs"
+          className="sidebar-link !justify-between mt-1 text-xs cursor-pointer"
         >
           <span className="flex items-center gap-2">
             {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} />}
@@ -162,7 +189,7 @@ export function MobileSidebarDrawer({ open, onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-surface-raised transition-colors"
+            className="p-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-surface-raised transition-colors cursor-pointer"
             aria-label="Close menu"
           >
             <X size={18} />
@@ -178,6 +205,7 @@ export function MobileSidebarDrawer({ open, onClose }) {
                 key={item.label}
                 to={item.path}
                 onClick={onClose}
+                onMouseEnter={() => prefetchRoute(item.path)}
                 className={({ isActive }) =>
                   isActive ? "sidebar-link-active" : "sidebar-link"
                 }
@@ -194,6 +222,7 @@ export function MobileSidebarDrawer({ open, onClose }) {
           <NavLink
             to="/ai"
             onClick={onClose}
+            onMouseEnter={() => prefetchRoute("/ai")}
             className={({ isActive }) =>
               isActive ? "sidebar-link-active" : "sidebar-link"
             }
@@ -202,10 +231,22 @@ export function MobileSidebarDrawer({ open, onClose }) {
             <span className="font-semibold">Ask AI Workspace</span>
           </NavLink>
 
+          <NavLink
+            to="/settings"
+            onClick={onClose}
+            onMouseEnter={() => prefetchRoute("/settings")}
+            className={({ isActive }) =>
+              isActive ? "sidebar-link-active" : "sidebar-link"
+            }
+          >
+            <Settings className="h-4 w-4 shrink-0" />
+            <span>Settings</span>
+          </NavLink>
+
           <button
             type="button"
             onClick={toggleTheme}
-            className="sidebar-link !justify-between text-xs"
+            className="sidebar-link !justify-between text-xs cursor-pointer"
           >
             <span className="flex items-center gap-2">
               {isDark ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} />}

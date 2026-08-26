@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
 import Sidebar, { MobileSidebarDrawer } from "./components/layout/Sidebar";
 import Topbar from "./components/layout/Topbar";
 import DeliveryArrivalModal from "./components/DeliveryArrivalModal";
+import PageSkeleton from "./components/common/PageSkeleton";
 import { BrowserRouter, Route, Routes, useLocation, NavLink } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import { FontProvider } from "./context/FontContext";
@@ -13,17 +14,18 @@ import {
   Sparkles
 } from "lucide-react";
 
-import Home from "./pages/Home";
-import ProductMaster from "./pages/ProductMaster";
-import VendorMaster from "./pages/Vendors";
-import PurchaseOrders from "./pages/Purchase";
-import Reports from "./pages/Reports";
-import Forecasting from "./pages/Forecasting";
-import Inventory from "./pages/Inventory";
-import PricingDiscounts from "./pages/PricingDiscount";
-import ChannelOrders from "./pages/ChannelOrders";
-import AskAI from "./pages/AskAI";
-import Settings from "./pages/Settings";
+// ── Dynamic Lazy-Loaded Page Imports (Fast Chunk Splitting) ────────────────
+const Home = lazy(() => import("./pages/Home"));
+const ProductMaster = lazy(() => import("./pages/ProductMaster"));
+const VendorMaster = lazy(() => import("./pages/Vendors"));
+const PurchaseOrders = lazy(() => import("./pages/Purchase"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Forecasting = lazy(() => import("./pages/Forecasting"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const PricingDiscounts = lazy(() => import("./pages/PricingDiscount"));
+const ChannelOrders = lazy(() => import("./pages/ChannelOrders"));
+const AskAI = lazy(() => import("./pages/AskAI"));
+const Settings = lazy(() => import("./pages/Settings"));
 
 const MOBILE_BOTTOM_NAV = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
@@ -54,23 +56,25 @@ function AppContent() {
         {/* Conditional Topbar (hidden on full-height /ai page) */}
         {!isAiPage && <Topbar onMenuClick={() => setMobileMenuOpen(true)} />}
 
-        {/* Automatic Delivery Arrival Verification Check on Homescreen / Dashboard */}
+        {/* Delivery Arrival Verification Check Modal */}
         <DeliveryArrivalModal />
 
         <main className="flex-1">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/products" element={<ProductMaster />} />
-            <Route path="/vendors" element={<VendorMaster />} />
-            <Route path="/purchase" element={<PurchaseOrders />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/pricing" element={<PricingDiscounts />} />
-            <Route path="/forecasting" element={<Forecasting />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/channel-orders" element={<ChannelOrders />} />
-            <Route path="/ai" element={<AskAI />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
+          <Suspense fallback={<PageSkeleton />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/products" element={<ProductMaster />} />
+              <Route path="/vendors" element={<VendorMaster />} />
+              <Route path="/purchase" element={<PurchaseOrders />} />
+              <Route path="/inventory" element={<Inventory />} />
+              <Route path="/pricing" element={<PricingDiscounts />} />
+              <Route path="/forecasting" element={<Forecasting />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/channel-orders" element={<ChannelOrders />} />
+              <Route path="/ai" element={<AskAI />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, Type, Building2, ShieldCheck, Plus, Trash2, Edit3,
   CheckCircle2, X, AlertCircle, Sparkles, Sun, Moon,
-  Lock, Eye, ShieldAlert, Check, RefreshCw
+  Lock, Eye, EyeOff, ShieldAlert, Check, RefreshCw, KeyRound, LogIn, Copy
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useTheme } from '../context/ThemeContext';
@@ -26,17 +26,25 @@ export default function Settings() {
   } = useFont();
 
   // Users state
-  const [users, setUsers]           = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [users, setUsers]                 = useState([]);
+  const [loadingUsers, setLoadingUsers]   = useState(true);
   const [userModalOpen, setUserModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [toast, setToast]           = useState(null);
-  const [formError, setFormError]   = useState(null);
+  const [editingUser, setEditingUser]     = useState(null);
+  const [toast, setToast]                 = useState(null);
+  const [formError, setFormError]         = useState(null);
+  const [showPassword, setShowPassword]   = useState(false);
+
+  // Test Login Simulator state
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [loginForm, setLoginForm]           = useState({ email: '', password: '' });
+  const [loginResult, setLoginResult]       = useState(null);
+  const [loginLoading, setLoginLoading]     = useState(false);
 
   // User form state
   const [userForm, setUserForm] = useState({
     name: '',
     email: '',
+    password: '',
     role: 'reader',
     department: 'Procurement',
     status: 'active',
@@ -64,11 +72,22 @@ export default function Settings() {
     loadUsers();
   }, []);
 
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#$';
+    let pwd = 'GF@';
+    for (let i = 0; i < 6; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setUserForm((f) => ({ ...f, password: pwd }));
+  };
+
   const handleOpenAdd = () => {
     setEditingUser(null);
+    setShowPassword(false);
     setUserForm({
       name: '',
       email: '',
+      password: 'User@1234',
       role: 'reader',
       department: 'Procurement',
       status: 'active',
@@ -79,9 +98,11 @@ export default function Settings() {
 
   const handleOpenEdit = (u) => {
     setEditingUser(u);
+    setShowPassword(false);
     setUserForm({
       name: u.name,
       email: u.email,
+      password: u.password || 'GreenFibre@2026',
       role: u.role,
       department: u.department || 'Procurement',
       status: u.status || 'active',
@@ -93,6 +114,19 @@ export default function Settings() {
   const handleSaveUser = async (e) => {
     e.preventDefault();
     setFormError(null);
+
+    if (!userForm.name?.trim()) {
+      setFormError('Please provide user name.');
+      return;
+    }
+    if (!userForm.email?.trim() || !userForm.email.includes('@')) {
+      setFormError('Please provide a valid email address.');
+      return;
+    }
+    if (!userForm.password?.trim()) {
+      setFormError('Please provide a login password.');
+      return;
+    }
 
     try {
       if (editingUser) {
@@ -119,6 +153,27 @@ export default function Settings() {
     } catch (err) {
       alert(`Error deleting user: ${err.message}`);
     }
+  };
+
+  const handleTestLoginSubmit = async (e) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setLoginResult(null);
+
+    try {
+      const res = await api.loginUser(loginForm);
+      setLoginResult({ success: true, user: res.user, message: res.message });
+      showToast(`Logged in successfully as ${res.user.name} (${res.user.role.toUpperCase()})`);
+    } catch (err) {
+      setLoginResult({ success: false, message: err.message || 'Invalid credentials' });
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text);
+    showToast(`${label} copied to clipboard!`);
   };
 
   const getRoleBadge = (role) => {
@@ -161,9 +216,22 @@ export default function Settings() {
             System Settings & Administration
           </h1>
           <p className="text-xs text-ink-muted">
-            Manage team roles (Admin vs. Reader), real-time typography, company details, and system parameters.
+            Manage user accounts (Name, Email & Login Password), RBAC roles (Admin vs. Reader), typography, and security.
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setLoginForm({ email: 'admin@greenfibre.com', password: 'Admin@1234' });
+            setLoginResult(null);
+            setLoginModalOpen(true);
+          }}
+          className="btn-outline !text-xs self-start sm:self-auto flex items-center gap-1.5"
+        >
+          <LogIn size={14} className="text-primary" />
+          <span>Test User Login</span>
+        </button>
       </div>
 
       {/* Tabs */}
@@ -191,28 +259,30 @@ export default function Settings() {
       {activeTab === 'team' && (
         <div className="flex flex-col gap-5 animate-enter">
           {/* Info Banner */}
-          <div className="p-4 rounded-xl border border-primary/30 bg-primary-soft/30 flex items-start justify-between gap-4">
+          <div className="p-4 rounded-xl border border-primary/30 bg-primary-soft/30 flex items-start justify-between gap-4 flex-wrap sm:flex-nowrap">
             <div className="flex items-start gap-3">
               <div className="h-8 w-8 rounded-lg bg-primary text-white flex items-center justify-center shrink-0 shadow-xs">
                 <ShieldCheck size={16} />
               </div>
               <div className="text-xs">
                 <h3 className="font-display font-bold text-sm text-ink mb-0.5">
-                  Role-Based Access Control (RBAC)
+                  User Authentication & Access Management (RBAC)
                 </h3>
                 <p className="text-ink-muted">
-                  Assign <strong>Admin</strong> (full management & approval authority) or <strong>Reader</strong> (read-only viewer privileges with modification restrictions).
+                  Create team members with their <strong>Full Name</strong>, <strong>Email</strong>, and <strong>Password</strong>. Assign <strong>Admin</strong> (full management & approval authority) or <strong>Reader</strong> (read-only view permissions).
                 </p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleOpenAdd}
-              className="btn-primary !text-xs shrink-0 whitespace-nowrap"
-            >
-              <Plus size={14} /> Add Team Member
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button
+                type="button"
+                onClick={handleOpenAdd}
+                className="btn-primary !text-xs shrink-0 whitespace-nowrap"
+              >
+                <Plus size={14} /> Add Team Member
+              </button>
+            </div>
           </div>
 
           {/* Users Table */}
@@ -220,16 +290,16 @@ export default function Settings() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="font-display font-semibold text-base text-ink">
-                  Registered Team Members ({users.length})
+                  Registered Users & Credentials ({users.length})
                 </h3>
                 <p className="text-xs text-ink-muted">
-                  Managed in PostgreSQL <code className="font-mono text-primary text-[11px]">system_users</code> table.
+                  Stored securely in PostgreSQL <code className="font-mono text-primary text-[11px]">system_users</code> with login authentication.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={loadUsers}
-                className="btn-outline !py-1.5 !px-2.5 text-xs text-ink-muted hover:text-ink"
+                className="btn-outline !py-1.5 !px-2.5 text-xs text-ink-muted hover:text-ink cursor-pointer"
                 title="Refresh from database"
               >
                 <RefreshCw size={13} className={loadingUsers ? 'animate-spin' : ''} />
@@ -240,8 +310,9 @@ export default function Settings() {
               <table className="table-clean">
                 <thead>
                   <tr>
-                    <th>Member</th>
-                    <th>Email Address</th>
+                    <th>User / Name</th>
+                    <th>Login Email</th>
+                    <th>Login Password</th>
                     <th>Role & Permission</th>
                     <th>Department</th>
                     <th>Status</th>
@@ -262,7 +333,36 @@ export default function Settings() {
                           </div>
                         </div>
                       </td>
-                      <td className="font-mono text-xs text-ink">{u.email}</td>
+                      <td className="font-mono text-xs text-ink">
+                        <div className="flex items-center gap-1.5">
+                          <span>{u.email}</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(u.email, 'Email')}
+                            className="text-ink-muted hover:text-primary transition-colors"
+                            title="Copy email"
+                          >
+                            <Copy size={11} />
+                          </button>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-1.5">
+                          <code className="font-mono text-xs px-2 py-0.5 rounded bg-surface-raised border border-border text-ink">
+                            {u.password || '••••••••'}
+                          </code>
+                          {u.password && (
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(u.password, 'Password')}
+                              className="text-ink-muted hover:text-primary transition-colors"
+                              title="Copy password"
+                            >
+                              <Copy size={11} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
                       <td>{getRoleBadge(u.role)}</td>
                       <td className="text-xs text-ink-muted">{u.department || 'Procurement'}</td>
                       <td>
@@ -275,15 +375,15 @@ export default function Settings() {
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(u)}
-                            className="p-1.5 rounded-lg border border-border text-ink-muted hover:text-primary hover:bg-surface-raised transition-colors"
-                            title="Edit Role / Details"
+                            className="p-1.5 rounded-lg border border-border text-ink-muted hover:text-primary hover:bg-surface-raised transition-colors cursor-pointer"
+                            title="Edit User / Password / Role"
                           >
                             <Edit3 size={13} />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteUser(u.id, u.name)}
-                            className="p-1.5 rounded-lg border border-border text-ink-muted hover:text-red hover:bg-surface-raised transition-colors"
+                            className="p-1.5 rounded-lg border border-border text-ink-muted hover:text-red hover:bg-surface-raised transition-colors cursor-pointer"
                             title="Remove User"
                           >
                             <Trash2 size={13} />
@@ -294,7 +394,7 @@ export default function Settings() {
                   ))}
                   {users.length === 0 && !loadingUsers && (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-ink-muted text-xs">
+                      <td colSpan={7} className="text-center py-8 text-ink-muted text-xs">
                         No team members found in database. Click "Add Team Member" to create one.
                       </td>
                     </tr>
@@ -340,37 +440,26 @@ export default function Settings() {
                         : 'border-border bg-surface hover:border-primary/40 hover:bg-surface-raised/60'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div
-                          className="font-bold text-base text-ink"
-                          style={{ fontFamily: f.fontFamily }}
-                        >
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-sm text-ink" style={{ fontFamily: f.body }}>
                           {f.name}
-                        </div>
-                        <span className="text-[10px] font-mono text-ink-muted uppercase">
-                          {f.category}
                         </span>
+                        {isSelected && (
+                          <span className="h-5 w-5 rounded-full bg-primary text-white flex items-center justify-center text-xs">
+                            <Check size={12} />
+                          </span>
+                        )}
                       </div>
-
-                      {isSelected ? (
-                        <span className="h-5 w-5 rounded-full bg-primary text-white flex items-center justify-center text-xs shadow-xs">
-                          <Check size={12} strokeWidth={3} />
-                        </span>
-                      ) : (
-                        <span className="h-5 w-5 rounded-full border border-border" />
-                      )}
+                      <span className="text-[11px] text-ink-muted block mb-2">{f.category}</span>
+                      <p className="text-xs text-ink-muted" style={{ fontFamily: f.body }}>
+                        "Quick procurement orders & reliable textile supply chain analytics."
+                      </p>
                     </div>
 
-                    <div
-                      className="p-2.5 rounded-lg bg-surface border border-border/70 text-xs text-ink leading-relaxed"
-                      style={{ fontFamily: f.fontFamily }}
-                    >
-                      "{f.previewText}"
-                    </div>
-
-                    <div className="text-[11px] text-ink-muted">
-                      {f.description}
+                    <div className="pt-2 border-t border-border/50 flex items-center justify-between text-[11px] text-ink-muted font-mono">
+                      <span>123,456.00</span>
+                      <span>₹495/unit</span>
                     </div>
                   </div>
                 );
@@ -378,145 +467,112 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* Font Scaling & Theme Density */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Font Size Scaling */}
-            <div className="card p-5">
-              <h3 className="font-display font-semibold text-sm text-ink mb-1">
-                Display Scale & Density
-              </h3>
-              <p className="text-xs text-ink-muted mb-4">
-                Adjust overall UI density and font proportions.
-              </p>
+          {/* Real-Time Font Scaling */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
+              <div>
+                <h3 className="font-display font-bold text-base text-ink">
+                  Dashboard Scale & Information Density
+                </h3>
+                <p className="text-xs text-ink-muted">
+                  Fine-tune layout spacing and UI text scaling for your display.
+                </p>
+              </div>
+            </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                {availableScales.map((s) => (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {availableScales.map((s) => {
+                const isSelected = selectedScaleId === s.id;
+                return (
                   <button
                     key={s.id}
                     type="button"
                     onClick={() => setFontScale(s.id)}
-                    className={`p-3 rounded-xl border text-center transition-all text-xs font-semibold ${
-                      selectedScaleId === s.id
-                        ? 'border-primary bg-primary-soft text-primary-strong shadow-2xs'
-                        : 'border-border bg-surface text-ink hover:bg-surface-raised'
+                    className={`p-3.5 rounded-xl border text-left transition-all ${
+                      isSelected
+                        ? 'border-primary bg-primary-soft/40 ring-2 ring-primary/20'
+                        : 'border-border bg-surface hover:border-primary/30'
                     }`}
                   >
-                    {s.label}
+                    <div className="font-bold text-xs text-ink mb-0.5">{s.name}</div>
+                    <div className="text-[11px] text-ink-muted">{s.desc}</div>
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Dark & Light Theme Switcher */}
-            <div className="card p-5 flex flex-col justify-between">
-              <div>
-                <h3 className="font-display font-semibold text-sm text-ink mb-1">
-                  Color Mode Theme
-                </h3>
-                <p className="text-xs text-ink-muted mb-4">
-                  Toggle between Crisp Light and Obsidian Dark modes.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="btn-outline !py-2.5 !justify-between w-full text-xs font-semibold"
-              >
-                <span className="flex items-center gap-2">
-                  {isDark ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} />}
-                  <span>Current: {isDark ? 'Obsidian Dark Mode' : 'Clean Light Mode'}</span>
-                </span>
-                <span className="text-[11px] font-mono text-primary font-bold uppercase">
-                  Click to Switch
-                </span>
-              </button>
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── TAB 3: COMPANY & HUBS ── */}
+      {/* ── TAB 3: COMPANY PROFILE & HUBS ── */}
       {activeTab === 'company' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-enter">
-          <div className="card p-5 flex flex-col gap-4">
-            <h3 className="font-display font-bold text-base text-ink flex items-center gap-2">
-              <Building2 size={18} className="text-primary" /> Company Profile
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 animate-enter">
+          <div className="card p-5">
+            <h3 className="font-display font-bold text-base text-ink mb-4 pb-2 border-b border-border flex items-center gap-2">
+              <Building2 size={16} className="text-primary" /> Enterprise Profile
             </h3>
 
-            <div>
-              <label className="label">Company Legal Name</label>
-              <input className="input font-semibold" defaultValue="Green Fibre Homeware & Logistics LLP" readOnly />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-3 text-xs">
               <div>
-                <label className="label">GSTIN Identification</label>
-                <input className="input font-mono" defaultValue="24AABCG1234F1Z8" readOnly />
+                <label className="label">Company Legal Name</label>
+                <input className="input" defaultValue="Green Fibre Textiles Ltd." readOnly />
               </div>
               <div>
-                <label className="label">Base Currency</label>
-                <input className="input font-mono font-bold text-primary" defaultValue="₹ INR (Indian Rupee)" readOnly />
+                <label className="label">Registered GSTIN</label>
+                <input className="input font-mono" defaultValue="27AAACG0123M1Z9" readOnly />
               </div>
-            </div>
-
-            <div>
-              <label className="label">Registered Office</label>
-              <textarea className="textarea" rows={2} defaultValue="Plot 42, GIDC Industrial Estate, Umbergaon, Gujarat — 396171" readOnly />
+              <div>
+                <label className="label">Headquarters / Main Office</label>
+                <input className="input" defaultValue="GreenFibre Tower, Phase II, Bandra-Kurla Complex, Mumbai" readOnly />
+              </div>
+              <div>
+                <label className="label">Finance & Procurement Email</label>
+                <input className="input" defaultValue="procurement@greenfibre.com" readOnly />
+              </div>
             </div>
           </div>
 
-          <div className="card p-5 flex flex-col gap-4">
-            <h3 className="font-display font-bold text-base text-ink flex items-center gap-2">
-              <ShieldCheck size={18} className="text-primary" /> Fulfillment & Logistics Hubs
+          <div className="card p-5">
+            <h3 className="font-display font-bold text-base text-ink mb-4 pb-2 border-b border-border">
+              Fulfillment Warehouses & Hubs
             </h3>
 
-            <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-xl border border-border bg-surface-raised flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-ink">Bhiwandi Central Hub (Hub A)</div>
-                  <span className="text-[11px] text-ink-muted">West Zone Primary Distribution Warehouse</span>
+            <div className="flex flex-col gap-3">
+              {[
+                { name: 'Bhiwandi Central Hub (WH-01)', loc: 'Bhiwandi, Maharashtra', cap: '85,000 units', status: 'Operational' },
+                { name: 'Surat Textile Distribution Center (WH-02)', loc: 'Surat, Gujarat', cap: '50,000 units', status: 'Operational' },
+                { name: 'Bangalore South Fulfillment (WH-03)', loc: 'Peenya, Bangalore', cap: '35,000 units', status: 'Operational' },
+              ].map((h, i) => (
+                <div key={i} className="p-3 rounded-xl border border-border bg-surface-raised flex items-center justify-between text-xs">
+                  <div>
+                    <div className="font-bold text-ink">{h.name}</div>
+                    <div className="text-[11px] text-ink-muted">{h.loc} · Capacity: {h.cap}</div>
+                  </div>
+                  <span className="badge-ok text-[11px]">{h.status}</span>
                 </div>
-                <span className="badge-ok">Active Hub</span>
-              </div>
-
-              <div className="p-3 rounded-xl border border-border bg-surface-raised flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-ink">Delhi NCR Fulfillment (Hub B)</div>
-                  <span className="text-[11px] text-ink-muted">North Zone Quick Ship Dock</span>
-                </div>
-                <span className="badge-ok">Active Hub</span>
-              </div>
-
-              <div className="p-3 rounded-xl border border-border bg-surface-raised flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-ink">Bangalore Logistics (Hub C)</div>
-                  <span className="text-[11px] text-ink-muted">South Zone Regional Hub</span>
-                </div>
-                <span className="badge-ok">Active Hub</span>
-              </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── TAB 4: ROLES & SECURITY MATRIX ── */}
+      {/* ── TAB 4: ROLE PERMISSIONS MATRIX ── */}
       {activeTab === 'matrix' && (
         <div className="card p-5 animate-enter">
-          <div className="mb-4">
-            <h3 className="font-display font-bold text-base text-ink">
-              System Permissions & Role Privilege Matrix
+          <div className="mb-4 pb-3 border-b border-border">
+            <h3 className="font-display font-bold text-base text-ink flex items-center gap-2">
+              <ShieldCheck size={18} className="text-primary" /> Role-Based Access Permissions Matrix
             </h3>
             <p className="text-xs text-ink-muted">
-              Defined security constraints separating Administrative power from Read-Only viewer privileges.
+              Comparison of capabilities across system roles.
             </p>
           </div>
 
           <div className="table-responsive-container">
-            <table className="table-clean">
+            <table className="table-clean text-xs">
               <thead>
                 <tr>
-                  <th>ERP Module / Feature</th>
+                  <th>Feature / Module</th>
                   <th className="text-center">Admin (Full Access)</th>
                   <th className="text-center">Manager (Ops)</th>
                   <th className="text-center">Reader (View Only)</th>
@@ -554,7 +610,7 @@ export default function Settings() {
                   <td className="text-center"><span className="text-ink-muted font-bold">✓ View Catalog</span></td>
                 </tr>
                 <tr>
-                  <td className="font-semibold text-ink">Settings & User Roles</td>
+                  <td className="font-semibold text-ink">Settings & User Management</td>
                   <td className="text-center"><span className="text-emerald-600 font-bold">✓ Full Control</span></td>
                   <td className="text-center"><span className="text-red-500 font-bold">✕ No Access</span></td>
                   <td className="text-center"><span className="text-red-500 font-bold">✕ No Access</span></td>
@@ -565,19 +621,19 @@ export default function Settings() {
         </div>
       )}
 
-      {/* ── ADD / EDIT USER MODAL ── */}
+      {/* ── ADD / EDIT USER MODAL (WITH NAME, EMAIL & PASSWORD) ── */}
       {userModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-enter">
           <div className="relative w-full max-w-md bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-border bg-surface-raised/50">
               <h3 className="font-display font-bold text-base text-ink flex items-center gap-2">
                 <Users size={18} className="text-primary" />
-                {editingUser ? 'Edit Team Member' : 'Add Team Member'}
+                {editingUser ? 'Edit User Credentials & Access' : 'Create User Account'}
               </h3>
               <button
                 type="button"
                 onClick={() => setUserModalOpen(false)}
-                className="p-1 rounded-lg text-ink-muted hover:text-ink"
+                className="p-1 rounded-lg text-ink-muted hover:text-ink cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -591,8 +647,11 @@ export default function Settings() {
                 </div>
               )}
 
+              {/* 1. Full Name */}
               <div>
-                <label className="label">Full Name *</label>
+                <label className="label">
+                  Full Name <span className="text-red-500 font-bold">*</span>
+                </label>
                 <input
                   className="input"
                   placeholder="e.g. Ramesh Sharma"
@@ -603,8 +662,11 @@ export default function Settings() {
                 />
               </div>
 
+              {/* 2. Login Email */}
               <div>
-                <label className="label">Email Address *</label>
+                <label className="label">
+                  Login Email Address <span className="text-red-500 font-bold">*</span>
+                </label>
                 <input
                   type="email"
                   className="input"
@@ -615,14 +677,53 @@ export default function Settings() {
                 />
               </div>
 
+              {/* 3. Login Password */}
               <div>
-                <label className="label">System Role *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label !mb-0">
+                    Login Password <span className="text-red-500 font-bold">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateRandomPassword}
+                    className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles size={11} /> Generate
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    className="input pr-10 font-mono"
+                    placeholder="e.g. Secret@1234"
+                    value={userForm.password}
+                    onChange={(e) => setUserForm((f) => ({ ...f, password: e.target.value }))}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink cursor-pointer"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-ink-muted mt-1">
+                  User will use this email & password to sign in.
+                </p>
+              </div>
+
+              {/* 4. Role Selection */}
+              <div>
+                <label className="label">System Role & Permission *</label>
                 <select
                   className="select font-semibold"
                   value={userForm.role}
                   onChange={(e) => setUserForm((f) => ({ ...f, role: e.target.value }))}
                 >
-                  <option value="admin">ADMIN — Full Management & Approval Access</option>
+                  <option value="admin">ADMIN — Full Management & Approval Authority</option>
                   <option value="manager">MANAGER — Procurement & Operations</option>
                   <option value="reader">READER — Read-Only Viewer (Cannot Edit)</option>
                 </select>
@@ -633,6 +734,7 @@ export default function Settings() {
                 </p>
               </div>
 
+              {/* 5. Department */}
               <div>
                 <label className="label">Department</label>
                 <input
@@ -647,12 +749,116 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => setUserModalOpen(false)}
-                  className="btn-ghost !text-xs"
+                  className="btn-ghost !text-xs cursor-pointer"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary !text-xs">
-                  {editingUser ? 'Save Changes' : 'Create User'}
+                <button type="submit" className="btn-primary !text-xs cursor-pointer">
+                  {editingUser ? 'Save User Changes' : 'Create User Account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── TEST USER LOGIN SIMULATOR MODAL ── */}
+      {loginModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-enter">
+          <div className="relative w-full max-w-sm bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-border bg-surface-raised/50">
+              <h3 className="font-display font-bold text-base text-ink flex items-center gap-2">
+                <LogIn size={18} className="text-primary" /> Test User Login
+              </h3>
+              <button
+                type="button"
+                onClick={() => setLoginModalOpen(false)}
+                className="p-1 rounded-lg text-ink-muted hover:text-ink cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleTestLoginSubmit} className="p-5 flex flex-col gap-3.5">
+              <p className="text-xs text-ink-muted">
+                Test signing in with registered credentials to verify password authentication and role access.
+              </p>
+
+              {loginResult && (
+                <div
+                  className={`p-3 rounded-xl border text-xs flex flex-col gap-1 ${
+                    loginResult.success
+                      ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300'
+                      : 'border-red-300 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300'
+                  }`}
+                >
+                  <div className="font-bold flex items-center gap-1.5">
+                    {loginResult.success ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
+                    <span>{loginResult.message}</span>
+                  </div>
+                  {loginResult.success && loginResult.user && (
+                    <div className="text-[11px] opacity-90 mt-1">
+                      Role: <strong className="uppercase">{loginResult.user.role}</strong> · Department: {loginResult.user.department}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <label className="label">Email Address</label>
+                <input
+                  type="email"
+                  className="input text-xs"
+                  placeholder="admin@greenfibre.com"
+                  value={loginForm.email}
+                  onChange={(e) => setLoginForm((f) => ({ ...f, email: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="label">Password</label>
+                <input
+                  type="password"
+                  className="input text-xs font-mono"
+                  placeholder="Enter user password"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm((f) => ({ ...f, password: e.target.value }))}
+                  required
+                />
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex flex-col gap-1.5 pt-1">
+                <span className="text-[11px] font-semibold text-ink-muted">Quick Autofill:</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setLoginForm({ email: 'admin@greenfibre.com', password: 'Admin@1234' })}
+                    className="btn-outline !text-[11px] !py-1 !px-2 flex-1"
+                  >
+                    Admin User
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginForm({ email: 'pooja.patel@greenfibre.com', password: 'Reader@1234' })}
+                    className="btn-outline !text-[11px] !py-1 !px-2 flex-1"
+                  >
+                    Reader User
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 mt-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setLoginModalOpen(false)}
+                  className="btn-ghost !text-xs cursor-pointer"
+                >
+                  Close
+                </button>
+                <button type="submit" className="btn-primary !text-xs cursor-pointer" disabled={loginLoading}>
+                  {loginLoading ? 'Authenticating…' : 'Sign In'}
                 </button>
               </div>
             </form>

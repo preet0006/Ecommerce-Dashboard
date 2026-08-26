@@ -20,11 +20,18 @@ export async function getSystemUsers(_req, res) {
 }
 
 /**
- * POST /api/settings/users — Add a new team member with role (Admin vs Reader)
+ * POST /api/settings/users — Add a new team member with email, password, role & department
  */
 export async function createSystemUser(req, res) {
   try {
-    const { name, email, role = 'reader', department = 'Procurement', status = 'active' } = req.body;
+    const {
+      name,
+      email,
+      password = 'GreenFibre@2026',
+      role = 'reader',
+      department = 'Procurement',
+      status = 'active',
+    } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Name is required' });
@@ -32,8 +39,12 @@ export async function createSystemUser(req, res) {
     if (!email || !email.trim() || !email.includes('@')) {
       return res.status(400).json({ message: 'A valid email address is required' });
     }
+    if (!password || !password.trim()) {
+      return res.status(400).json({ message: 'Password is required for user login' });
+    }
 
     const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
     const cleanRole = ['admin', 'manager', 'reader'].includes(role) ? role : 'reader';
 
     // Compute initials avatar
@@ -42,7 +53,7 @@ export async function createSystemUser(req, res) {
       ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
       : name.slice(0, 2).toUpperCase();
 
-    // Check duplicate
+    // Check duplicate email
     const existing = await db
       .select()
       .from(schema.systemUsers)
@@ -58,6 +69,7 @@ export async function createSystemUser(req, res) {
       .values({
         name: name.trim(),
         email: cleanEmail,
+        password: cleanPassword,
         role: cleanRole,
         department: department.trim() || 'Procurement',
         avatar,
@@ -74,12 +86,12 @@ export async function createSystemUser(req, res) {
 }
 
 /**
- * PUT /api/settings/users/:id — Update a user's role or details
+ * PUT /api/settings/users/:id — Update a user's role, password or details
  */
 export async function updateSystemUser(req, res) {
   try {
     const { id } = req.params;
-    const { name, role, department, status } = req.body;
+    const { name, email, password, role, department, status } = req.body;
 
     const numericId = parseInt(id, 10);
     if (isNaN(numericId)) {
@@ -88,6 +100,8 @@ export async function updateSystemUser(req, res) {
 
     const updates = { updatedAt: new Date() };
     if (name) updates.name = name.trim();
+    if (email && email.includes('@')) updates.email = email.trim().toLowerCase();
+    if (password && password.trim()) updates.password = password.trim();
     if (role && ['admin', 'manager', 'reader'].includes(role)) updates.role = role;
     if (department) updates.department = department.trim();
     if (status && ['active', 'inactive'].includes(status)) updates.status = status;
@@ -125,6 +139,63 @@ export async function deleteSystemUser(req, res) {
   } catch (err) {
     console.error('[settingsController.deleteSystemUser]', err);
     return res.status(500).json({ message: 'Failed to delete user', error: err.message });
+  }
+}
+
+/**
+ * POST /api/settings/login — Authenticate user with Email & Password
+ */
+export async function loginUser(req, res) {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    const [user] = await db
+      .select()
+      .from(schema.systemUsers)
+      .where(eq(schema.systemUsers.email, cleanEmail))
+      .limit(1);
+
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or user does not exist' });
+    }
+
+    if (user.status === 'inactive') {
+      return res.status(403).json({ message: 'This user account is inactive. Contact Administrator.' });
+    }
+
+    if (user.password !== cleanPassword) {
+      return res.status(401).json({ message: 'Incorrect password' });
+    }
+
+    // Update last login timestamp
+    await db
+      .update(schema.systemUsers)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(schema.systemUsers.id, user.id));
+
+    return res.json({
+      success: true,
+      message: `Welcome back, ${user.name}!`,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        avatar: user.avatar,
+        status: user.status,
+      },
+    });
+  } catch (err) {
+    console.error('[settingsController.loginUser]', err);
+    return res.status(500).json({ message: 'Login failed', error: err.message });
   }
 }
 

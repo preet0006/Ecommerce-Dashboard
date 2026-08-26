@@ -165,6 +165,10 @@ export const api = {
   deleteSystemUser: (id) =>
     request(`/settings/users/${id}`, { method: 'DELETE' }),
 
+  /** Authenticate user with Email & Password */
+  loginUser: (data) =>
+    request('/settings/login', { method: 'POST', body: JSON.stringify(data) }),
+
   /** Fetch general application settings */
   getAppSettings: () => request('/settings/general'),
 

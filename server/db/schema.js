@@ -5,6 +5,7 @@ export const systemUsers = pgTable('system_users', {
   id:           serial('id').primaryKey(),
   name:         varchar('name', { length: 150 }).notNull(),
   email:        varchar('email', { length: 150 }).notNull().unique(),
+  password:     varchar('password', { length: 255 }).default('GreenFibre@2026').notNull(),
   role:         varchar('role', { length: 30 }).default('reader').notNull(), // 'admin' | 'manager' | 'reader'
   status:       varchar('status', { length: 30 }).default('active').notNull(), // 'active' | 'inactive'
   department:   varchar('department', { length: 100 }).default('Procurement'),

@@ -65,7 +65,7 @@ export async function getApprovalQueue(_req, res) {
   }
 }
 
-// ── GET Pending Delivery Arrival Checks (Only for orders reaching Day 9-10 of 15 or due date) ──
+// ── GET Pending Delivery Arrival Checks (Only for orders reaching 14th or 15th day of given timeline, or past expected delivery date) ──
 export async function getPendingDeliveryChecks(_req, res) {
   try {
     const rows = await db
@@ -89,18 +89,26 @@ export async function getPendingDeliveryChecks(_req, res) {
 
     const now = Date.now();
 
-    // Filter to only orders that have reached their check threshold (e.g. Day 9/10 of 15, or after due date)
+    // Filter to only orders that have reached the 14th or 15th day of their given timeline (or on/past expected delivery date)
     const dueForCheck = rows.filter((po) => {
       const createdTime = new Date(po.createdAt).getTime();
       const elapsedDays = Math.floor((now - createdTime) / (1000 * 60 * 60 * 24));
-      const threshold = po.reminderDaysThreshold || Math.max(1, Math.round((po.givenDays || 15) * 0.6));
-      const targetTime = po.expectedDelivery ? new Date(po.expectedDelivery).getTime() : null;
+      const totalGivenDays = Number(po.givenDays) || 15;
+      
+      // Target threshold is 14th or 15th day (i.e. at least totalGivenDays - 1)
+      const deliveryDueDay = Math.max(1, totalGivenDays - 1);
+      const isDueByDays = elapsedDays >= deliveryDueDay;
 
-      // Check if threshold (e.g. Day 9 or 10) is reached, or if the expected delivery date has arrived
-      const isPastThreshold = elapsedDays >= threshold;
-      const isPastDueDate = targetTime ? now >= targetTime : false;
+      // Also verify if a specific expected delivery date string (e.g. '2026-09-01') was given and reached
+      let isDueByDate = false;
+      if (po.expectedDelivery && !isNaN(Date.parse(po.expectedDelivery))) {
+        const dueDate = new Date(po.expectedDelivery).getTime();
+        // 1 day before expected delivery date (14th day equivalent)
+        const oneDayBeforeDue = dueDate - (24 * 60 * 60 * 1000);
+        isDueByDate = now >= oneDayBeforeDue;
+      }
 
-      return isPastThreshold || isPastDueDate;
+      return isDueByDays || isDueByDate;
     });
 
     res.json(dueForCheck);

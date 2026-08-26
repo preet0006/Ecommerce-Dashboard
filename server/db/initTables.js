@@ -11,6 +11,7 @@ export async function initTables() {
         id SERIAL PRIMARY KEY,
         name VARCHAR(150) NOT NULL,
         email VARCHAR(150) NOT NULL UNIQUE,
+        password VARCHAR(255) DEFAULT 'GreenFibre@2026' NOT NULL,
         role VARCHAR(30) DEFAULT 'reader' NOT NULL,
         status VARCHAR(30) DEFAULT 'active' NOT NULL,
         department VARCHAR(100) DEFAULT 'Procurement',
@@ -21,12 +22,17 @@ export async function initTables() {
       );
     `);
 
+    // Ensure password column exists if table was created previously
+    await db.execute(`
+      ALTER TABLE system_users ADD COLUMN IF NOT EXISTS password VARCHAR(255) DEFAULT 'GreenFibre@2026';
+    `);
+
     // Seed default Admin and Reader users if table is empty
     await db.execute(`
-      INSERT INTO system_users (name, email, role, status, department, avatar)
+      INSERT INTO system_users (name, email, password, role, status, department, avatar)
       VALUES 
-        ('Rahul Joshi', 'admin@greenfibre.com', 'admin', 'active', 'Executive Management', 'RJ'),
-        ('Pooja Patel', 'pooja.patel@greenfibre.com', 'reader', 'active', 'Inventory Auditing', 'PP')
+        ('Rahul Joshi', 'admin@greenfibre.com', 'Admin@1234', 'admin', 'active', 'Executive Management', 'RJ'),
+        ('Pooja Patel', 'pooja.patel@greenfibre.com', 'Reader@1234', 'reader', 'active', 'Inventory Auditing', 'PP')
       ON CONFLICT (email) DO NOTHING;
     `);
 
