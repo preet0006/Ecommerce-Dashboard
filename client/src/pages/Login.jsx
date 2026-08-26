@@ -45,20 +45,20 @@ export default function Login() {
         style={{ background: 'linear-gradient(135deg, #092c1e 0%, #1F6E4C 55%, #3a9b6f 100%)' }}
       >
         {/* Large ambient watermark logo in background */}
-        <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-[520px] h-[520px] pointer-events-none select-none flex items-center justify-center opacity-[0.08] filter brightness-150 mix-blend-screen">
+        <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-[520px] h-[520px] pointer-events-none select-none flex items-center justify-center opacity-[0.09] filter brightness-125">
           <img
-            src={greenfibreGLogo}
+            src={greenfibreLeaves}
             alt=""
-            className="w-full h-full object-contain mix-blend-screen"
+            className="w-full h-full object-contain"
           />
         </div>
 
-        {/* Top-Right Shaded Watermark Badge (Official G-Logo with leaves) */}
-        <div className="absolute right-8 top-10 w-44 h-44 rounded-full bg-white/[0.08] border border-white/15 p-6 flex items-center justify-center pointer-events-none select-none shadow-2xl backdrop-blur-xs overflow-hidden">
+        {/* Top-Right Shaded Watermark Badge (Pure transparent leaves mingled inside circle) */}
+        <div className="absolute right-8 top-10 w-44 h-44 rounded-full bg-white/[0.08] border border-white/20 p-7 flex items-center justify-center pointer-events-none select-none shadow-2xl backdrop-blur-md">
           <img
-            src={greenfibreGLogo}
-            alt="Green Fibre G Emblem"
-            className="w-full h-full object-contain opacity-70 filter drop-shadow-md brightness-110 mix-blend-screen"
+            src={greenfibreLeaves}
+            alt="Green Fibre Leaves Emblem"
+            className="w-full h-full object-contain opacity-60 filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.25)]"
           />
         </div>
 
