@@ -72,3 +72,40 @@ export const purchaseOrders = pgTable('purchase_orders', {
   createdAt:              timestamp('created_at').defaultNow().notNull(),
   updatedAt:              timestamp('updated_at').defaultNow().notNull(),
 });
+
+// ─── Products & Master Inventory/Pricing Schema ──────────────────────────────
+export const products = pgTable('products', {
+  id:                     serial('id').primaryKey(),
+  sku:                    varchar('sku', { length: 100 }).notNull().unique(), // e.g. GF-CAS-001
+  name:                   varchar('name', { length: 250 }).notNull(),
+  category:               varchar('category', { length: 100 }),
+  warehouse:              varchar('warehouse', { length: 100 }).default('Bhiwandi'),
+  
+  // Costing & Base Pricing
+  mrp:                    numeric('mrp', { precision: 10, scale: 2 }),
+  costPrice:              numeric('cost_price', { precision: 10, scale: 2 }),
+  landedCost:             numeric('landed_cost', { precision: 10, scale: 2 }),
+  sellingPrice:           numeric('selling_price', { precision: 10, scale: 2 }),
+
+  // Multi-Channel Listing Prices
+  amazon:                 numeric('amazon_price', { precision: 10, scale: 2 }),
+  flipkart:               numeric('flipkart_price', { precision: 10, scale: 2 }),
+  website:                numeric('website_price', { precision: 10, scale: 2 }),
+
+  // Inventory Dimensions
+  physical:               integer('physical_stock').default(0),
+  inTransit:              integer('in_transit').default(0),
+  reserved:               integer('reserved').default(0),
+  sales30d:               integer('sales_30d').default(0),
+  sales7d:                integer('sales_7d').default(0),
+  avgMonthlySales:        integer('avg_monthly_sales').default(0),
+  leadTimeDays:           integer('lead_time_days').default(14),
+  safetyStockDays:        integer('safety_stock_days').default(5),
+  orderDate:              varchar('order_date', { length: 50 }),
+  lastSaleDaysAgo:        integer('last_sale_days_ago').default(0),
+  holdingCostPctPerMonth: numeric('holding_cost_pct', { precision: 4, scale: 2 }).default('2.00'),
+
+  createdAt:              timestamp('created_at').defaultNow().notNull(),
+  updatedAt:              timestamp('updated_at').defaultNow().notNull(),
+});
+

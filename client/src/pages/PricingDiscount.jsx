@@ -1,24 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import {
   Tags, SlidersHorizontal, ListChecks, History, ChevronRight,
-  CheckCircle2, XCircle, Clock, TrendingDown, TrendingUp
+  CheckCircle2, XCircle, Clock, TrendingDown, TrendingUp, Search
 } from 'lucide-react';
+import { UNIFIED_PRODUCTS, marginPct } from '../lib/productsData';
 
 /* ============================================================
-   MOCK DATA — replace with API calls to your Pricing Engine
-   endpoints (GET /api/pricing, POST /api/pricing/simulate, etc.)
+   PRICING & DISCOUNTS
+   Uses unified product schema (UNIFIED_PRODUCTS)
    ============================================================ */
-
-const MOCK_CHANNEL_PRICING = [
-  { sku: 'GF-CAS-001', name: 'Casserole Set A (3pc)', amazon: 899, flipkart: 879, website: 949, landedCost: 585 },
-  { sku: 'GF-BWL-014', name: 'Bowl Set B (6pc)', amazon: 549, flipkart: 559, website: 599, landedCost: 410 },
-  { sku: 'GF-PET-002', name: 'Pet Bowl Steel', amazon: 249, flipkart: 239, website: 279, landedCost: 140 },
-  { sku: 'GF-CAS-005', name: 'Casserole Set C (5pc)', amazon: 1399, flipkart: 1379, website: 1449, landedCost: 1120 },
-];
 
 const MOCK_PRICE_APPROVALS = [
   { id: 'PC-2026-091', sku: 'GF-BWL-014', channel: 'Amazon', from: 549, to: 469, marginAfter: 18.6, requestedBy: 'Marketing Team' },
   { id: 'PC-2026-090', sku: 'GF-PET-002', channel: 'Website', from: 279, to: 249, marginAfter: 38.2, requestedBy: 'Sales Team' },
+  { id: 'PC-2026-089', sku: 'GF-CAS-005', channel: 'Flipkart', from: 1379, to: 1299, marginAfter: 13.8, requestedBy: 'Promotions Lead' },
 ];
 
 const MOCK_PRICE_HISTORY = [
@@ -35,10 +30,6 @@ const TABS = [
   { id: 'history', label: 'Price History', icon: History },
 ];
 
-function marginPct(price, cost) {
-  return ((price - cost) / price) * 100;
-}
-
 function marginBadge(pct) {
   if (pct >= 30) return <span className="badge-ok">{pct.toFixed(1)}%</span>;
   if (pct >= 20) return <span className="badge-warn">{pct.toFixed(1)}%</span>;
@@ -47,63 +38,201 @@ function marginBadge(pct) {
 
 /* ---------------- Channel Pricing ---------------- */
 function ChannelPricing({ rows }) {
+  const [query, setQuery] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return rows;
+    const q = query.toLowerCase();
+    return rows.filter(
+      r => r.sku.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || (r.category && r.category.toLowerCase().includes(q))
+    );
+  }, [rows, query]);
+
   return (
-    <div className="card p-5 animate-enter">
-      <table className="table-clean">
-        <thead>
-          <tr>
-            <th>SKU</th>
-            <th>Product</th>
-            <th className="text-right">Amazon</th>
-            <th className="text-right">Flipkart</th>
-            <th className="text-right">Website</th>
-            <th>Amazon Margin</th>
-            <th>Flipkart Margin</th>
-            <th>Website Margin</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.sku}>
-              <td className="font-mono text-xs text-ink-muted">{r.sku}</td>
-              <td className="font-medium">{r.name}</td>
-              <td className="text-right">₹{r.amazon}</td>
-              <td className="text-right">₹{r.flipkart}</td>
-              <td className="text-right">₹{r.website}</td>
-              <td>{marginBadge(marginPct(r.amazon, r.landedCost))}</td>
-              <td>{marginBadge(marginPct(r.flipkart, r.landedCost))}</td>
-              <td>{marginBadge(marginPct(r.website, r.landedCost))}</td>
+    <div className="flex flex-col gap-4 animate-enter">
+      {/* Search Header */}
+      <div className="card p-3 flex items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
+          <input
+            type="text"
+            className="input pl-9 w-full"
+            placeholder="Search by SKU or product name..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <div className="text-xs text-ink-muted font-mono">
+          Showing {filtered.length} of {rows.length} products
+        </div>
+      </div>
+
+      <div className="card p-5 overflow-x-auto">
+        <table className="table-clean w-full">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Product</th>
+              <th className="text-right">Amazon</th>
+              <th className="text-right">Flipkart</th>
+              <th className="text-right">Website</th>
+              <th>Amazon Margin</th>
+              <th>Flipkart Margin</th>
+              <th>Website Margin</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filtered.map((r) => {
+              const amazonPrice = r.amazon ?? r.sellingPrice;
+              const flipkartPrice = r.flipkart ?? r.sellingPrice;
+              const websitePrice = r.website ?? r.sellingPrice;
+              const cost = r.landedCost ?? r.costPrice ?? 0;
+
+              return (
+                <tr key={r.sku}>
+                  <td className="font-mono text-xs text-ink-muted">{r.sku}</td>
+                  <td className="font-medium">{r.name}</td>
+                  <td className="text-right font-mono">₹{amazonPrice}</td>
+                  <td className="text-right font-mono">₹{flipkartPrice}</td>
+                  <td className="text-right font-mono">₹{websitePrice}</td>
+                  <td>{marginBadge(marginPct(amazonPrice, cost))}</td>
+                  <td>{marginBadge(marginPct(flipkartPrice, cost))}</td>
+                  <td>{marginBadge(marginPct(websitePrice, cost))}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Custom Downward SKU Selector ---------------- */
+function SkuSelect({ rows, selectedSku, onSelect }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return rows;
+    const q = query.toLowerCase();
+    return rows.filter(
+      r => r.sku.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)
+    );
+  }, [rows, query]);
+
+  const current = rows.find(r => r.sku === selectedSku) || rows[0];
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        className="input flex items-center justify-between gap-2 w-full text-left cursor-pointer"
+        onClick={() => setOpen(prev => !prev)}
+      >
+        <span className="font-medium text-sm text-ink truncate">
+          <span className="font-mono text-xs text-ink-muted mr-1.5">{current?.sku}</span>
+          {current?.name}
+        </span>
+        <span className="text-xs text-ink-muted shrink-0">▼</span>
+      </button>
+
+      {open && (
+        <div
+          className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg shadow-xl border overflow-hidden"
+          style={{
+            background: 'var(--color-surface, #ffffff)',
+            borderColor: 'var(--color-border)',
+            maxHeight: 280,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div className="p-2 border-b shrink-0" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted" />
+              <input
+                autoFocus
+                type="text"
+                className="input pl-8 text-xs h-8 w-full"
+                placeholder="Type to filter 50 SKUs..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="overflow-y-auto flex-1 divide-y" style={{ borderColor: 'var(--color-border)' }}>
+            {filtered.length === 0 ? (
+              <div className="p-3 text-center text-xs text-ink-muted">No matching SKU found</div>
+            ) : (
+              filtered.map((r) => {
+                const isSelected = r.sku === current?.sku;
+                return (
+                  <button
+                    key={r.sku}
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors hover:bg-black/5"
+                    style={isSelected ? { background: 'var(--color-primary-soft, rgba(15,118,110,0.08))' } : {}}
+                    onClick={() => {
+                      onSelect(r.sku);
+                      setOpen(false);
+                      setQuery('');
+                    }}
+                  >
+                    <div className="truncate">
+                      <div className="font-mono font-medium text-ink">{r.sku}</div>
+                      <div className="text-ink-muted truncate">{r.name}</div>
+                    </div>
+                    {isSelected && <span className="text-primary font-bold text-xs">✓</span>}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ---------------- Discount Simulator ---------------- */
 function DiscountSimulator({ rows }) {
-  const [skuIdx, setSkuIdx] = useState(0);
+  const [selectedSku, setSelectedSku] = useState(rows[0]?.sku || 'GF-CAS-001');
   const [channel, setChannel] = useState('amazon');
   const [discountPct, setDiscountPct] = useState(10);
   const [expectedVolume, setExpectedVolume] = useState(300);
 
-  const product = rows[skuIdx];
-  const currentPrice = product[channel];
+  const product = rows.find(r => r.sku === selectedSku) || rows[0];
+  const currentPrice = product ? (product[channel] ?? product.sellingPrice ?? 0) : 0;
+  const cost = product ? (product.landedCost ?? product.costPrice ?? 0) : 0;
   const newPrice = Math.round(currentPrice * (1 - discountPct / 100));
-  const marginAfter = marginPct(newPrice, product.landedCost);
-  const monthlyProfit = (newPrice - product.landedCost) * Number(expectedVolume || 0);
+  const marginAfter = marginPct(newPrice, cost);
+  const monthlyProfit = (newPrice - cost) * Number(expectedVolume || 0);
 
   return (
-    <div className="grid grid-cols-3 gap-5 animate-enter">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-enter">
       <div className="card p-6">
         <h3 className="font-display font-semibold text-lg mb-4">Simulate Discount</h3>
         <div className="flex flex-col gap-4">
           <div>
-            <label className="label">SKU</label>
-            <select className="select" value={skuIdx} onChange={(e) => setSkuIdx(Number(e.target.value))}>
-              {rows.map((r, i) => <option key={r.sku} value={i}>{r.sku} — {r.name}</option>)}
-            </select>
+            <label className="label">SKU / Product</label>
+            <SkuSelect
+              rows={rows}
+              selectedSku={selectedSku}
+              onSelect={(sku) => setSelectedSku(sku)}
+            />
           </div>
           <div>
             <label className="label">Channel</label>
@@ -115,32 +244,34 @@ function DiscountSimulator({ rows }) {
           </div>
           <div>
             <label className="label">Proposed Discount %</label>
-            <input className="input" type="number" value={discountPct} onChange={(e) => setDiscountPct(Number(e.target.value))} />
+            <input className="input" type="number" min="0" max="90" value={discountPct} onChange={(e) => setDiscountPct(Number(e.target.value))} />
           </div>
           <div>
             <label className="label">Expected Monthly Volume</label>
-            <input className="input" type="number" value={expectedVolume} onChange={(e) => setExpectedVolume(e.target.value)} />
+            <input className="input" type="number" min="1" value={expectedVolume} onChange={(e) => setExpectedVolume(e.target.value)} />
           </div>
         </div>
       </div>
 
-      <div className="card p-6 col-span-2">
+      <div className="card p-6 lg:col-span-2">
         <h3 className="font-display font-semibold text-lg mb-1">Impact Preview</h3>
-        <p className="text-sm text-ink-muted mb-5">Nothing goes live until this is approved and published.</p>
+        <p className="text-sm text-ink-muted mb-5">
+          Simulated channel impact for <strong className="text-ink">{product?.name} ({product?.sku})</strong>.
+        </p>
 
         <div className="grid grid-cols-2 gap-4 mb-5">
           <div className="kpi-card">
-            <span className="section-title">Current Price</span>
+            <span className="section-title">Current Channel Price</span>
             <span className="stat-figure">₹{currentPrice}</span>
           </div>
           <div className="kpi-card">
-            <span className="section-title">New Price</span>
+            <span className="section-title">New Price After Discount</span>
             <span className="stat-figure">₹{newPrice}</span>
           </div>
           <div className="kpi-card">
             <span className="section-title">Margin After Discount</span>
             <span className="stat-figure">{marginAfter.toFixed(1)}%</span>
-            <div>{marginBadge(marginAfter)}</div>
+            <div className="mt-1">{marginBadge(marginAfter)}</div>
           </div>
           <div className="kpi-card">
             <span className="section-title">Projected Monthly Profit</span>
@@ -150,13 +281,13 @@ function DiscountSimulator({ rows }) {
 
         {marginAfter < 20 && (
           <div className="p-4 rounded-md mb-4 text-sm" style={{ background: 'var(--color-red-soft)', color: 'var(--color-red)' }}>
-            This discount pushes margin below 20% — floor-price rule requires manager approval to publish.
+            This discount pushes margin below 20% floor — manager approval will be required to publish.
           </div>
         )}
 
         <div className="flex items-center gap-2">
           <button className="btn-primary">Send for Approval</button>
-          <button className="btn-outline">Reset</button>
+          <button className="btn-outline" onClick={() => setDiscountPct(10)}>Reset</button>
         </div>
       </div>
     </div>
@@ -209,8 +340,8 @@ function PriceApprovalQueue({ items }) {
 /* ---------------- Price History ---------------- */
 function PriceHistory({ rows }) {
   return (
-    <div className="card p-5 animate-enter">
-      <table className="table-clean">
+    <div className="card p-5 animate-enter overflow-x-auto">
+      <table className="table-clean w-full">
         <thead>
           <tr>
             <th>Date</th>
@@ -228,8 +359,8 @@ function PriceHistory({ rows }) {
               <td className="text-ink-muted">{r.date}</td>
               <td className="font-mono text-xs">{r.sku}</td>
               <td><span className="badge">{r.channel}</span></td>
-              <td className="text-right">₹{r.from}</td>
-              <td className="text-right font-medium">₹{r.to}</td>
+              <td className="text-right font-mono">₹{r.from}</td>
+              <td className="text-right font-mono font-medium">₹{r.to}</td>
               <td className="flex items-center gap-1">
                 {r.to < r.from
                   ? <span className="flex items-center gap-1 text-red text-sm"><TrendingDown size={14} />{(((r.from - r.to) / r.from) * 100).toFixed(1)}%</span>
@@ -272,8 +403,8 @@ export default function PricingDiscounts() {
         })}
       </div>
 
-      {activeTab === 'channel' && <ChannelPricing rows={MOCK_CHANNEL_PRICING} />}
-      {activeTab === 'simulator' && <DiscountSimulator rows={MOCK_CHANNEL_PRICING} />}
+      {activeTab === 'channel' && <ChannelPricing rows={UNIFIED_PRODUCTS} />}
+      {activeTab === 'simulator' && <DiscountSimulator rows={UNIFIED_PRODUCTS} />}
       {activeTab === 'approval' && <PriceApprovalQueue items={MOCK_PRICE_APPROVALS} />}
       {activeTab === 'history' && <PriceHistory rows={MOCK_PRICE_HISTORY} />}
     </div>
