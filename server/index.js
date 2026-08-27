@@ -7,6 +7,7 @@ import channelOrderRoutes from './routes/channelOrders.js';
 import aiRoutes from './routes/ai.js';
 import settingsRoutes from './routes/settings.js';
 import priceChangeRoutes from './routes/priceChanges.js';
+import authRoutes from './routes/auth.js';
 import { runMockChannelSync } from './jobs/mockChannelSync.js';
 import { initTables } from './db/initTables.js';
 import { startVendorFollowUpCron } from './jobs/vendorFollowupCron.js';
@@ -28,12 +29,14 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ── Routes ──────────────────────────────────────────────────────────
+app.use('/api/auth', authRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/pos', poRoutes);
 app.use('/api/channel-orders', channelOrderRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/price-changes', priceChangeRoutes);
+
 
 // ── 404 fallback ────────────────────────────────────────────────────
 app.use((_req, res) => {

@@ -14,7 +14,14 @@ import {
   Sparkles
 } from "lucide-react";
 
-// ── Dynamic Lazy-Loaded Page Imports (Fast Chunk Splitting) ────────────────
+import RequireAuth from "./components/auth/RequireAuth";
+
+// ── Auth Pages (Lazy-loaded) ────────────────────────────────────────────────
+const Login = lazy(() => import("./pages/Login"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+
+// ── Dashboard Pages (Lazy-loaded) ───────────────────────────────────────────
 const Home = lazy(() => import("./pages/Home"));
 const ProductMaster = lazy(() => import("./pages/ProductMaster"));
 const VendorMaster = lazy(() => import("./pages/Vendors"));
@@ -111,7 +118,24 @@ export default function App() {
     <ThemeProvider>
       <FontProvider>
         <BrowserRouter>
-          <AppContent />
+          <Suspense fallback={<PageSkeleton />}>
+            <Routes>
+              {/* Public Unprotected Auth Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+
+              {/* Protected Dashboard Routes */}
+              <Route
+                path="/*"
+                element={
+                  <RequireAuth>
+                    <AppContent />
+                  </RequireAuth>
+                }
+              />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </FontProvider>
     </ThemeProvider>

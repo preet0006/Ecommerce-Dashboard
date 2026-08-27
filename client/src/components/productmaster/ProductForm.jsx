@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import SKUDropdown from './SKUDropdown';
-import { CATEGORIES, EMPTY_PRODUCT_FORM } from './utils';
+import { CATEGORIES, EMPTY_PRODUCT_FORM, marginBadge } from './utils';
 
 /* ── Add / Edit Product form ── */
 export default function ProductForm({ product, products, onSave, onClose }) {
@@ -12,11 +12,19 @@ export default function ProductForm({ product, products, onSave, onClose }) {
           name: product.name,
           category: product.category,
           mrp: product.mrp,
+          sellingPrice: product.sellingPrice ?? '',
+          landedCost: product.landedCost ?? '',
+          stock: product.stock ?? '',
           gst: product.gst ?? '',
           weight: product.weight ?? '',
           dimensions: product.dimensions ?? '',
         }
-      : { ...EMPTY_PRODUCT_FORM }
+      : {
+          ...EMPTY_PRODUCT_FORM,
+          sellingPrice: '',
+          landedCost: '',
+          stock: '',
+        }
   );
   const [selectedSKU, setSelectedSKU] = useState(product?.id || null);
   const [mode, setMode]               = useState(product ? 'edit' : 'select');
@@ -30,6 +38,9 @@ export default function ProductForm({ product, products, onSave, onClose }) {
       name: p.name,
       category: p.category,
       mrp: p.mrp,
+      sellingPrice: p.sellingPrice ?? '',
+      landedCost: p.landedCost ?? '',
+      stock: p.stock ?? '',
       gst: p.gst ?? '',
       weight: p.weight ?? '',
       dimensions: p.dimensions ?? '',
@@ -39,11 +50,15 @@ export default function ProductForm({ product, products, onSave, onClose }) {
 
   const handleAddNew = () => {
     setSelectedSKU(null);
-    setForm({ ...EMPTY_PRODUCT_FORM });
+    setForm({ ...EMPTY_PRODUCT_FORM, sellingPrice: '', landedCost: '', stock: '' });
     setMode('add');
   };
 
   const formReadOnly = mode === 'select';
+
+  const sp = Number(form.sellingPrice) || 0;
+  const lc = Number(form.landedCost) || 0;
+  const autoContributionPct = sp > 0 ? ((sp - lc) / sp) * 100 : 0;
 
   return (
     <div className="p-6">
@@ -52,7 +67,7 @@ export default function ProductForm({ product, products, onSave, onClose }) {
       </h3>
       <p className="text-sm text-ink-muted mb-5">
         {mode === 'add'
-          ? 'Fill in all details for the new product. A permanent SKU will be created.'
+          ? 'Fill in all details for the new product. Contribution % is automatically calculated.'
           : mode === 'edit'
           ? 'Fields are auto-filled from the catalogue. Update any value and save.'
           : 'Select a SKU from the dropdown to edit, or choose "+ Add New Product".'}
@@ -107,6 +122,21 @@ export default function ProductForm({ product, products, onSave, onClose }) {
         </div>
 
         <div>
+          <label className="label">Selling Price (₹)</label>
+          <input className="input" type="number" placeholder="899" value={form.sellingPrice} onChange={update('sellingPrice')} readOnly={formReadOnly} />
+        </div>
+
+        <div>
+          <label className="label">Landed Cost (₹)</label>
+          <input className="input" type="number" placeholder="585" value={form.landedCost} onChange={update('landedCost')} readOnly={formReadOnly} />
+        </div>
+
+        <div>
+          <label className="label">Stock Qty</label>
+          <input className="input" type="number" placeholder="100" value={form.stock} onChange={update('stock')} readOnly={formReadOnly} />
+        </div>
+
+        <div>
           <label className="label">GST %</label>
           <input className="input" type="number" placeholder="18" value={form.gst} onChange={update('gst')} readOnly={formReadOnly} />
         </div>
@@ -116,10 +146,21 @@ export default function ProductForm({ product, products, onSave, onClose }) {
           <input className="input" type="number" placeholder="1.2" value={form.weight} onChange={update('weight')} readOnly={formReadOnly} />
         </div>
 
-        <div>
+        <div className="col-span-2">
           <label className="label">Carton Dimensions</label>
           <input className="input" placeholder="30 × 20 × 15 cm" value={form.dimensions} onChange={update('dimensions')} readOnly={formReadOnly} />
         </div>
+
+        {/* Live Automated Contribution % calculation card */}
+        {mode !== 'select' && sp > 0 && (
+          <div className="col-span-2 p-3.5 rounded-lg bg-primary-soft/20 border border-primary/20 flex items-center justify-between">
+            <div>
+              <div className="text-xs text-ink-muted">Automated Contribution %:</div>
+              <div className="text-xs font-mono text-ink-muted">({sp} - {lc}) / {sp} × 100</div>
+            </div>
+            <div>{marginBadge(autoContributionPct)}</div>
+          </div>
+        )}
       </div>
 
       {mode !== 'select' && (

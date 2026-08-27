@@ -1,21 +1,33 @@
+import bcrypt from 'bcryptjs';
 import { db } from '../db/index.js';
 import * as schema from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 
 /**
- * GET /api/settings/users — Fetch all system team members
+ * GET /api/settings/users — Fetch all registered team members
  */
-export async function getSystemUsers(_req, res) {
+export async function getSystemUsers(req, res) {
   try {
     const users = await db
-      .select()
+      .select({
+        id: schema.systemUsers.id,
+        name: schema.systemUsers.name,
+        email: schema.systemUsers.email,
+        password: schema.systemUsers.password,
+        role: schema.systemUsers.role,
+        status: schema.systemUsers.status,
+        department: schema.systemUsers.department,
+        avatar: schema.systemUsers.avatar,
+        lastLoginAt: schema.systemUsers.lastLoginAt,
+        createdAt: schema.systemUsers.createdAt,
+      })
       .from(schema.systemUsers)
       .orderBy(desc(schema.systemUsers.createdAt));
 
     return res.json(users);
   } catch (err) {
     console.error('[settingsController.getSystemUsers]', err);
-    return res.status(500).json({ message: 'Failed to fetch team members', error: err.message });
+    return res.status(500).json({ message: 'Failed to fetch users', error: err.message });
   }
 }
 
@@ -64,12 +76,15 @@ export async function createSystemUser(req, res) {
       return res.status(409).json({ message: `A user with email ${cleanEmail} already exists` });
     }
 
+    const passwordHash = await bcrypt.hash(cleanPassword, 10);
+
     const [created] = await db
       .insert(schema.systemUsers)
       .values({
         name: name.trim(),
         email: cleanEmail,
         password: cleanPassword,
+        passwordHash,
         role: cleanRole,
         department: department.trim() || 'Procurement',
         avatar,
@@ -101,7 +116,10 @@ export async function updateSystemUser(req, res) {
     const updates = { updatedAt: new Date() };
     if (name) updates.name = name.trim();
     if (email && email.includes('@')) updates.email = email.trim().toLowerCase();
-    if (password && password.trim()) updates.password = password.trim();
+    if (password && password.trim()) {
+      updates.password = password.trim();
+      updates.passwordHash = await bcrypt.hash(password.trim(), 10);
+    }
     if (role && ['admin', 'manager', 'reader'].includes(role)) updates.role = role;
     if (department) updates.department = department.trim();
     if (status && ['active', 'inactive'].includes(status)) updates.status = status;
@@ -170,7 +188,16 @@ export async function loginUser(req, res) {
       return res.status(403).json({ message: 'This user account is inactive. Contact Administrator.' });
     }
 
-    if (user.password !== cleanPassword) {
+    // Verify bcrypt hash or fallback to direct password check
+    let validPassword = false;
+    if (user.passwordHash) {
+      validPassword = await bcrypt.compare(cleanPassword, user.passwordHash);
+    }
+    if (!validPassword && user.password) {
+      validPassword = user.password === cleanPassword;
+    }
+
+    if (!validPassword) {
       return res.status(401).json({ message: 'Incorrect password' });
     }
 
