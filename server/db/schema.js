@@ -11,11 +11,6 @@ export const systemUsers = pgTable('system_users', {
   status:              varchar('status', { length: 30 }).default('active').notNull(), // 'active' | 'inactive'
   department:          varchar('department', { length: 100 }).default('Procurement'),
   avatar:              varchar('avatar', { length: 10 }).default('GF'),
-<<<<<<< HEAD
-=======
-  passwordHash:        varchar('password_hash', { length: 255 }),
-  password:            varchar('password', { length: 255 }),
->>>>>>> 7b976ba4718750d29635c5b634b5feda2dda1f2d
   resetToken:          varchar('reset_token', { length: 64 }),
   resetTokenExpiresAt: timestamp('reset_token_expires_at'),
   lastLoginAt:         timestamp('last_login_at'),
