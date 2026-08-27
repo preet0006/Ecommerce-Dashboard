@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Lock, Loader2, CheckCircle2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { resetPassword as resetPasswordApi } from '../lib/api';
-import greenfibreLogo from '../assets/greenfibre-logo.png';
+import greenfibreLeaves from '../assets/greenfibre-leaves.png';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -65,11 +65,11 @@ export default function ResetPassword() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-bg text-ink">
       <div className="card max-w-md w-full p-8 shadow-xl border border-border animate-enter">
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-11 w-11 rounded-xl bg-white p-1 border border-border/80 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+          <div className="h-11 w-11 rounded-xl bg-white p-2 border border-border/80 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
             <img
-              src={greenfibreLogo}
-              alt="Green Fibre Leaves Emblem"
-              className="h-full w-full object-cover object-top scale-[1.5] -translate-y-[6%]"
+              src={greenfibreLeaves}
+              alt="Green Fibre Leaves"
+              className="h-full w-full object-contain"
             />
           </div>
           <div className="flex flex-col">

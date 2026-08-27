@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { requestPasswordReset } from '../lib/api';
-import greenfibreLogo from '../assets/greenfibre-logo.png';
+import greenfibreLeaves from '../assets/greenfibre-leaves.png';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -28,11 +28,11 @@ export default function ForgotPassword() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-bg text-ink">
       <div className="card max-w-md w-full p-8 shadow-xl border border-border animate-enter">
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-11 w-11 rounded-xl bg-white p-1 border border-border/80 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+          <div className="h-11 w-11 rounded-xl bg-white p-2 border border-border/80 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
             <img
-              src={greenfibreLogo}
-              alt="Green Fibre Leaves Emblem"
-              className="h-full w-full object-cover object-top scale-[1.5] -translate-y-[6%]"
+              src={greenfibreLeaves}
+              alt="Green Fibre Leaves"
+              className="h-full w-full object-contain"
             />
           </div>
           <div className="flex flex-col">

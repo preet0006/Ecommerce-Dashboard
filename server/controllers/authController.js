@@ -20,15 +20,42 @@ export async function login(req, res) {
     if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
 
     const [user] = await db.select().from(systemUsers).where(eq(systemUsers.email, email.trim().toLowerCase()));
-    if (!user || !user.passwordHash) {
+    if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
     if (user.status !== 'active') {
       return res.status(403).json({ message: 'This account is inactive. Contact your admin.' });
     }
 
-    const match = await bcrypt.compare(password, user.passwordHash);
-    if (!match) return res.status(401).json({ message: 'Invalid email or password' });
+    let match = false;
+
+    // 1. Check against passwordHash if present
+    if (user.passwordHash) {
+      if (user.passwordHash.startsWith('$2')) {
+        match = await bcrypt.compare(password, user.passwordHash);
+      } else {
+        match = (password === user.passwordHash);
+      }
+    }
+
+    // 2. Check against password column if present and not matched yet
+    if (!match && user.password) {
+      if (user.password.startsWith('$2')) {
+        match = await bcrypt.compare(password, user.password);
+      } else {
+        match = (password === user.password);
+      }
+    }
+
+    if (!match) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    // Auto-migrate / auto-hash password into passwordHash if it wasn't a valid bcrypt hash
+    if (!user.passwordHash || !user.passwordHash.startsWith('$2')) {
+      const newHash = await bcrypt.hash(password, 10);
+      await db.update(systemUsers).set({ passwordHash: newHash }).where(eq(systemUsers.id, user.id));
+    }
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, name: user.name },
