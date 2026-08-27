@@ -91,7 +91,6 @@ export default function Settings() {
       role: 'reader',
       department: 'Procurement',
       status: 'active',
-      password: '',
     });
     setFormError(null);
     setUserModalOpen(true);

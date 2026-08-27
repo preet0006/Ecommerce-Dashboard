@@ -39,15 +39,11 @@ export default function DeliveryArrivalModal() {
   };
 
   useEffect(() => {
-    // Initial check on dashboard load
-    const timer = setTimeout(() => fetchPendingChecks(false), 2000);
-
     // Listen for manual trigger from Topbar or Purchase page
     const handleOpenEvent = () => fetchPendingChecks(true);
     window.addEventListener('open-delivery-modal', handleOpenEvent);
 
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('open-delivery-modal', handleOpenEvent);
     };
   }, []);

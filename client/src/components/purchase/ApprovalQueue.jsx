@@ -8,20 +8,12 @@ import SideBySideStatusModal from './SideBySideStatusModal';
    APPROVAL QUEUE TAB
 ══════════════════════════════════════════════════════════════ */
 export default function ApprovalQueue({ queue, onApproveOrder, onRejectOrder, onGoToPOList }) {
-  const [showSideBySideModal, setShowSideBySideModal] = useState(() => queue.length > 0);
+  const [showSideBySideModal, setShowSideBySideModal] = useState(false);
   const [notification, setNotification]               = useState(null);
-
-  useEffect(() => {
-    if (queue.length > 0) {
-      setShowSideBySideModal(true);
-    } else {
-      setShowSideBySideModal(false);
-    }
-  }, [queue.length]);
 
   function handleConfirmApproval(approvedPo) {
     if (onApproveOrder) {
-      onApproveOrder(approvedPo);
+      onApproveOrder(approvedPo.id, approvedPo);
     }
     setNotification({
       type: 'APPROVED',

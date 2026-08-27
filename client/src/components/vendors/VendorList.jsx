@@ -15,14 +15,15 @@ export default function VendorList({ onSelect, onAdd, onDeleted }) {
   useEffect(() => {
     setLoading(true);
     api.getVendors()
-      .then(setVendors)
+      .then((data) => setVendors(Array.isArray(data) ? data : []))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = vendors.filter((v) =>
-    v.name.toLowerCase().includes(query.toLowerCase()) ||
-    v.vendorCode.toLowerCase().includes(query.toLowerCase())
+  const safeVendors = Array.isArray(vendors) ? vendors : [];
+  const filtered = safeVendors.filter((v) =>
+    (v?.name || '').toLowerCase().includes(query.toLowerCase()) ||
+    (v?.vendorCode || '').toLowerCase().includes(query.toLowerCase())
   );
 
   async function handleDelete(id) {

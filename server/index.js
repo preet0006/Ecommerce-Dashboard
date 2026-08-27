@@ -8,6 +8,7 @@ import aiRoutes from './routes/ai.js';
 import settingsRoutes from './routes/settings.js';
 import priceChangeRoutes from './routes/priceChanges.js';
 import authRoutes from './routes/auth.js';
+import dashboardRoutes from './routes/dashboard.js';
 import { runMockChannelSync } from './jobs/mockChannelSync.js';
 import { initTables } from './db/initTables.js';
 import { startVendorFollowUpCron } from './jobs/vendorFollowupCron.js';
@@ -36,6 +37,7 @@ app.use('/api/channel-orders', channelOrderRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/price-changes', priceChangeRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 
 // ── 404 fallback ────────────────────────────────────────────────────

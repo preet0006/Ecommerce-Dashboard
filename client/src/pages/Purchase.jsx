@@ -58,45 +58,50 @@ export default function PurchaseOrders() {
   };
 
   // When user approves an order in Approval Queue pop-up
-  const handleApproveOrder = async (orderId, verifiedData) => {
+  const handleApproveOrder = async (approvedPoOrId, verifiedData) => {
+    const orderId = typeof approvedPoOrId === 'object' ? approvedPoOrId.id : approvedPoOrId;
+    const finalData = typeof approvedPoOrId === 'object' ? approvedPoOrId : (verifiedData || {});
+    const confirmedOrder = {
+      ...finalData,
+      id: orderId,
+      status: 'confirmed',
+    };
+
+    setApprovalQueue((prev) => prev.filter((o) => o.id !== orderId));
+    setPos((prev) => [
+      confirmedOrder,
+      ...prev.filter((p) => p.id !== orderId),
+    ]);
+
     try {
-      const updated = await api.confirmPurchaseOrder(orderId, verifiedData);
-      setApprovalQueue((prev) => prev.filter((o) => o.id !== orderId));
+      const updated = await api.confirmPurchaseOrder(orderId, finalData);
       if (updated && updated.po) {
         setPos((prev) => [updated.po, ...prev.filter((p) => p.id !== orderId)]);
       }
     } catch (e) {
       console.warn('Confirm error:', e.message);
-      // Fallback
-      setApprovalQueue((prev) => prev.filter((o) => o.id !== orderId));
-      setPos((prev) =>
-        prev.map((p) =>
-          p.id === orderId
-            ? { ...p, status: 'confirmed', ...verifiedData }
-            : p
-        )
-      );
     }
   };
 
   // When user rejects an order in Approval Queue
-  const handleRejectOrder = async (orderId, rejectionReason) => {
+  const handleRejectOrder = async (rejectedPoOrId, reason, rejectedPo) => {
+    const orderId = typeof rejectedPoOrId === 'object' ? rejectedPoOrId.id : rejectedPoOrId;
+    const finalReason = reason || (typeof rejectedPoOrId === 'object' ? rejectedPoOrId.rejectionReason : '') || 'Vendor declined';
+    const finalRejectedOrder = rejectedPo || (typeof rejectedPoOrId === 'object' ? rejectedPoOrId : { id: orderId, status: 'rejected', rejectionReason: finalReason });
+
+    setApprovalQueue((prev) => prev.filter((o) => o.id !== orderId));
+    setPos((prev) => [
+      { ...finalRejectedOrder, id: orderId, status: 'rejected', rejectionReason: finalReason },
+      ...prev.filter((p) => p.id !== orderId),
+    ]);
+
     try {
-      const updated = await api.rejectPurchaseOrder(orderId, { rejectionReason });
-      setApprovalQueue((prev) => prev.filter((o) => o.id !== orderId));
+      const updated = await api.rejectPurchaseOrder(orderId, { rejectionReason: finalReason });
       if (updated && updated.po) {
         setPos((prev) => [updated.po, ...prev.filter((p) => p.id !== orderId)]);
       }
     } catch (e) {
       console.warn('Reject error:', e.message);
-      setApprovalQueue((prev) => prev.filter((o) => o.id !== orderId));
-      setPos((prev) =>
-        prev.map((p) =>
-          p.id === orderId
-            ? { ...p, status: 'rejected', rejectionReason }
-            : p
-        )
-      );
     }
   };
 

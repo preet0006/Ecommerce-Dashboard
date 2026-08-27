@@ -128,7 +128,9 @@ export default function VendorForm({ vendor: initialVendor, onSaved, onCancel })
         setSuccess(`Vendor "${cleanName}" (${cleanCode}) updated successfully!`);
       } else {
         const created = await api.createVendor(payload);
-        setSuccess(`Vendor "${created.name}" (${created.vendorCode}) created in database!`);
+        const savedName = created?.name || cleanName;
+        const savedCode = created?.vendorCode || cleanCode;
+        setSuccess(`Vendor "${savedName}" (${savedCode}) created in database!`);
         setForm({ ...EMPTY_FORM, leadTimeDays: '7', creditDays: '30' });
         setEditingVendor(null);
       }

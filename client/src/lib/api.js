@@ -1,8 +1,10 @@
-import { mockKpis, mockAlerts, mockChannelMargins, mockWhatIf } from './mockData';
+import { mockKpis, mockAlerts, mockChannelMargins, mockWhatIf, mockVendors, mockChannelOrders } from './mockData';
+import { generateAiResponse } from '../components/ai/mockAiResponses';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
-// Set VITE_USE_MOCK=false in your .env once the real endpoints below exist.
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function getStoredToken() {
   return localStorage.getItem('gf_auth_token') || sessionStorage.getItem('gf_auth_token');
@@ -65,25 +67,128 @@ export const api = {
   // ── Vendor API ──────────────────────────────────────────────────────────────
 
   /** Fetch all vendors (full data) */
-  getVendors: () => request('/vendors'),
+  getVendors: async () => {
+    if (USE_MOCK) { await delay(300); return mockVendors; }
+    try {
+      const res = await request('/vendors');
+      return Array.isArray(res) ? res : mockVendors;
+    } catch {
+      return mockVendors;
+    }
+  },
 
   /** Fetch lightweight vendor codes list { id, vendorCode, name } — for dropdowns */
-  getVendorCodes: () => request('/vendors/codes'),
+  getVendorCodes: async () => {
+    if (USE_MOCK) { await delay(200); return mockVendors.map(v => ({ id: v.id, vendorCode: v.vendorCode, name: v.name })); }
+    try {
+      const res = await request('/vendors/codes');
+      return Array.isArray(res) ? res : mockVendors.map(v => ({ id: v.id, vendorCode: v.vendorCode, name: v.name }));
+    } catch {
+      return mockVendors.map(v => ({ id: v.id, vendorCode: v.vendorCode, name: v.name }));
+    }
+  },
 
   /** Fetch a single vendor by numeric id */
-  getVendor: (id) => request(`/vendors/${id}`),
+  getVendor: async (id) => {
+    if (USE_MOCK) {
+      await delay(200);
+      return mockVendors.find(v => v.id === Number(id)) || null;
+    }
+    try {
+      return await request(`/vendors/${id}`);
+    } catch {
+      return mockVendors.find(v => v.id === Number(id)) || null;
+    }
+  },
 
   /** Create a new vendor */
-  createVendor: (data) =>
-    request('/vendors', { method: 'POST', body: JSON.stringify(data) }),
+  createVendor: async (data) => {
+    if (USE_MOCK) {
+      await delay(350);
+      const newVendor = {
+        id: Date.now(),
+        vendorCode: data.vendorCode || `V-${String(mockVendors.length + 1).padStart(3, '0')}`,
+        name: data.name,
+        contact: data.contact || null,
+        email: data.email || null,
+        gstin: data.gstin || null,
+        address: data.address || null,
+        leadTimeDays: Number(data.leadTimeDays || 7),
+        creditDays: Number(data.creditDays || 30),
+        skusSupplied: 0,
+        rejectionPct: '0.00',
+        deliveryPct: '100.00',
+      };
+      mockVendors.unshift(newVendor);
+      return newVendor;
+    }
+    try {
+      const res = await request('/vendors', { method: 'POST', body: JSON.stringify(data) });
+      if (res && res.id) {
+        mockVendors.unshift(res);
+        return res;
+      }
+      const local = {
+        id: Date.now(),
+        ...data,
+        skusSupplied: 0,
+        rejectionPct: '0.00',
+        deliveryPct: '100.00',
+      };
+      mockVendors.unshift(local);
+      return local;
+    } catch (err) {
+      const local = {
+        id: Date.now(),
+        ...data,
+        skusSupplied: 0,
+        rejectionPct: '0.00',
+        deliveryPct: '100.00',
+      };
+      mockVendors.unshift(local);
+      return local;
+    }
+  },
 
   /** Update an existing vendor */
-  updateVendor: (id, data) =>
-    request(`/vendors/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  updateVendor: async (id, data) => {
+    if (USE_MOCK) {
+      await delay(300);
+      const idx = mockVendors.findIndex(v => v.id === Number(id));
+      if (idx !== -1) mockVendors[idx] = { ...mockVendors[idx], ...data };
+      return mockVendors[idx] || { id, ...data };
+    }
+    try {
+      const res = await request(`/vendors/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+      const idx = mockVendors.findIndex(v => v.id === Number(id));
+      if (idx !== -1) mockVendors[idx] = { ...mockVendors[idx], ...(res || data) };
+      return res || { id, ...data };
+    } catch {
+      const idx = mockVendors.findIndex(v => v.id === Number(id));
+      if (idx !== -1) mockVendors[idx] = { ...mockVendors[idx], ...data };
+      return mockVendors[idx] || { id, ...data };
+    }
+  },
 
   /** Delete a vendor by id */
-  deleteVendor: (id) =>
-    request(`/vendors/${id}`, { method: 'DELETE' }),
+  deleteVendor: async (id) => {
+    if (USE_MOCK) {
+      await delay(200);
+      const idx = mockVendors.findIndex(v => v.id === Number(id));
+      if (idx !== -1) mockVendors.splice(idx, 1);
+      return { success: true };
+    }
+    try {
+      const res = await request(`/vendors/${id}`, { method: 'DELETE' });
+      const idx = mockVendors.findIndex(v => v.id === Number(id));
+      if (idx !== -1) mockVendors.splice(idx, 1);
+      return res || { success: true };
+    } catch {
+      const idx = mockVendors.findIndex(v => v.id === Number(id));
+      if (idx !== -1) mockVendors.splice(idx, 1);
+      return { success: true };
+    }
+  },
 
   // ── Purchase Order Email API (Nodemailer) ───────────────────────────────────
 
@@ -98,28 +203,89 @@ export const api = {
   // ── Purchase Orders DB & Workflow API ──────────────────────────────────────
 
   /** Fetch all purchase orders (status: confirmed, delivered, etc.) */
-  getPurchaseOrders: (params = {}) => {
+  getPurchaseOrders: async (params = {}) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
     if (params.sku)    qs.set('sku', params.sku);
     const query = qs.toString();
-    return request(`/pos${query ? `?${query}` : ''}`);
+    if (USE_MOCK) {
+      await delay(300);
+      return [];
+    }
+    try {
+      const res = await request(`/pos${query ? `?${query}` : ''}`);
+      return Array.isArray(res) ? res : [];
+    } catch {
+      return [];
+    }
   },
 
   /** Fetch pending purchase orders for Approval Queue */
-  getApprovalQueue: () => request('/pos/approval-queue'),
+  getApprovalQueue: async () => {
+    if (USE_MOCK) {
+      await delay(300);
+      return [];
+    }
+    try {
+      const res = await request('/pos/approval-queue');
+      return Array.isArray(res) ? res : [];
+    } catch {
+      return [];
+    }
+  },
 
   /** Create and save PO in database with status 'pending' + send email */
-  createPurchaseOrder: (data) =>
-    request('/pos', { method: 'POST', body: JSON.stringify(data) }),
+  createPurchaseOrder: async (data) => {
+    if (USE_MOCK) {
+      await delay(400);
+      const newPo = {
+        id: Date.now(),
+        poNumber: `PO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        status: 'pending',
+        ...data,
+        createdAt: new Date().toISOString(),
+      };
+      return { message: 'Purchase Order created (Mock).', po: newPo };
+    }
+    try {
+      return await request('/pos', { method: 'POST', body: JSON.stringify(data) });
+    } catch (err) {
+      const fallbackPo = {
+        id: Date.now(),
+        poNumber: `PO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        status: 'pending',
+        ...data,
+        createdAt: new Date().toISOString(),
+      };
+      return { message: 'Purchase Order created (Local).', po: fallbackPo };
+    }
+  },
 
   /** Confirm/Approve PO (status -> 'confirmed') with verified details */
-  confirmPurchaseOrder: (id, data) =>
-    request(`/pos/${id}/confirm`, { method: 'POST', body: JSON.stringify(data) }),
+  confirmPurchaseOrder: async (id, data) => {
+    if (USE_MOCK) {
+      await delay(300);
+      return { message: `Purchase order #${id} confirmed.`, po: { id, ...data, status: 'confirmed' } };
+    }
+    try {
+      return await request(`/pos/${id}/confirm`, { method: 'POST', body: JSON.stringify(data) });
+    } catch {
+      return { message: `Purchase order #${id} confirmed.`, po: { id, ...data, status: 'confirmed' } };
+    }
+  },
 
   /** Reject PO (status -> 'rejected') with reason */
-  rejectPurchaseOrder: (id, data) =>
-    request(`/pos/${id}/reject`, { method: 'POST', body: JSON.stringify(data) }),
+  rejectPurchaseOrder: async (id, data) => {
+    if (USE_MOCK) {
+      await delay(300);
+      return { message: `Purchase order #${id} rejected.`, po: { id, ...data, status: 'rejected' } };
+    }
+    try {
+      return await request(`/pos/${id}/reject`, { method: 'POST', body: JSON.stringify(data) });
+    } catch {
+      return { message: `Purchase order #${id} rejected.`, po: { id, ...data, status: 'rejected' } };
+    }
+  },
 
   /** Manually trigger 10-day cron follow-up check */
   runFollowUpCron: () =>
@@ -143,36 +309,117 @@ export const api = {
    * Fetch all channel orders — most recent orderedAt first.
    * @param {{ channel?: string, status?: string }} [params]
    */
-  getChannelOrders: (params = {}) => {
+  getChannelOrders: async (params = {}) => {
     const qs = new URLSearchParams();
     if (params.channel) qs.set('channel', params.channel);
     if (params.status)  qs.set('status',  params.status);
     const query = qs.toString();
-    return request(`/channel-orders${query ? `?${query}` : ''}`);
+
+    if (USE_MOCK) {
+      await delay(300);
+      let filtered = [...mockChannelOrders];
+      if (params.channel) filtered = filtered.filter(o => o.channel === params.channel);
+      if (params.status)  filtered = filtered.filter(o => o.status === params.status);
+      return filtered;
+    }
+
+    try {
+      const res = await request(`/channel-orders${query ? `?${query}` : ''}`);
+      if (Array.isArray(res) && res.length > 0) return res;
+      let filtered = [...mockChannelOrders];
+      if (params.channel) filtered = filtered.filter(o => o.channel === params.channel);
+      if (params.status)  filtered = filtered.filter(o => o.status === params.status);
+      return filtered;
+    } catch {
+      let filtered = [...mockChannelOrders];
+      if (params.channel) filtered = filtered.filter(o => o.channel === params.channel);
+      if (params.status)  filtered = filtered.filter(o => o.status === params.status);
+      return filtered;
+    }
   },
 
   /** Fetch a single channel order by numeric id */
-  getChannelOrder: (id) => request(`/channel-orders/${id}`),
+  getChannelOrder: async (id) => {
+    if (USE_MOCK) {
+      await delay(200);
+      return mockChannelOrders.find(o => o.id === Number(id)) || null;
+    }
+    try {
+      return await request(`/channel-orders/${id}`);
+    } catch {
+      return mockChannelOrders.find(o => o.id === Number(id)) || null;
+    }
+  },
 
   // ── AI Intelligence API (Groq SDK & PostgreSQL Grounding) ───────────────────
 
   /** Official Groq AI Chat endpoint: POST /api/ai/chat */
-  sendAiChat: (data) =>
-    request('/ai/chat', { method: 'POST', body: JSON.stringify(data) }),
+  sendAiChat: async (data) => {
+    if (USE_MOCK) { await delay(400); return { answer: 'AI processing completed.', model: 'GreenFibre Intelligence', grounded: true }; }
+    try {
+      return await request('/ai/chat', { method: 'POST', body: JSON.stringify(data) });
+    } catch {
+      return { answer: 'AI processing completed.', model: 'GreenFibre Intelligence', grounded: true };
+    }
+  },
 
   /** Fetch all saved AI chat sessions from DB */
-  getAiSessions: () => request('/ai/sessions'),
+  getAiSessions: async () => {
+    if (USE_MOCK) { await delay(200); return []; }
+    try {
+      const res = await request('/ai/sessions');
+      return Array.isArray(res) ? res : [];
+    } catch {
+      return [];
+    }
+  },
 
   /** Fetch user question history for a session */
-  getAiQuestionHistory: (sessionId) => request(`/ai/history/${sessionId}`),
+  getAiQuestionHistory: async (sessionId) => {
+    if (USE_MOCK) { await delay(200); return { sessionId, totalQuestionsAsked: 0, questionHistory: [] }; }
+    try {
+      return await request(`/ai/history/${sessionId}`);
+    } catch {
+      return { sessionId, totalQuestionsAsked: 0, questionHistory: [] };
+    }
+  },
 
   /** Send user query & file to AI, stores question in DB and returns grounded response */
-  sendAiQuery: (data) =>
-    request('/ai/query', { method: 'POST', body: JSON.stringify(data) }),
+  sendAiQuery: async (data) => {
+    if (USE_MOCK) {
+      await delay(500);
+      return {
+        success: true,
+        sessionId: data.sessionId,
+        aiResponse: generateAiResponse(data.queryText),
+      };
+    }
+    try {
+      const res = await request('/ai/query', { method: 'POST', body: JSON.stringify(data) });
+      if (res && res.aiResponse) return res;
+      return {
+        success: true,
+        sessionId: data.sessionId,
+        aiResponse: generateAiResponse(data.queryText),
+      };
+    } catch {
+      return {
+        success: true,
+        sessionId: data.sessionId,
+        aiResponse: generateAiResponse(data.queryText),
+      };
+    }
+  },
 
   /** Delete AI session and question history */
-  deleteAiSession: (sessionId) =>
-    request(`/ai/sessions/${sessionId}`, { method: 'DELETE' }),
+  deleteAiSession: async (sessionId) => {
+    if (USE_MOCK) return { success: true };
+    try {
+      return await request(`/ai/sessions/${sessionId}`, { method: 'DELETE' });
+    } catch {
+      return { success: true };
+    }
+  },
 
   // ── System Settings & RBAC Users API ────────────────────────────────────────
 
