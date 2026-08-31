@@ -9,6 +9,7 @@ import settingsRoutes from './routes/settings.js';
 import priceChangeRoutes from './routes/priceChanges.js';
 import authRoutes from './routes/auth.js';
 import dashboardRoutes from './routes/dashboard.js';
+import productRoutes from './routes/products.js';
 import { runMockChannelSync } from './jobs/mockChannelSync.js';
 import { initTables } from './db/initTables.js';
 import { startVendorFollowUpCron } from './jobs/vendorFollowupCron.js';
@@ -17,10 +18,13 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ── Middleware ──────────────────────────────────────────────────────────────
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:4173'], // Vite dev + preview ports
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: true, // Allows any origin during local development
+    credentials: true,
+  })
+);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
@@ -38,6 +42,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/price-changes', priceChangeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/products', productRoutes);
 
 
 // ── 404 fallback ────────────────────────────────────────────────────

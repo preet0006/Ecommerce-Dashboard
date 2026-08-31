@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Send, Calendar, Package, ShieldCheck, Plus, Sparkles, CheckCircle2, RotateCcw
 } from 'lucide-react';
-import { getProductsCatalog, addProductToCatalog } from '../../lib/productsCatalog';
+import { getProductsCatalog, addProductToCatalog, fetchAndSyncProductsCatalog } from '../../lib/productsCatalog';
+import { createProduct } from '../../lib/api';
 import { calculateDeliveryDays, getDefaultDate } from './utils';
 import VendorSendModal from './VendorSendModal';
 
@@ -16,6 +17,14 @@ import VendorSendModal from './VendorSendModal';
 export default function CreatePO({ onOrdersCreated }) {
   const [catalog, setCatalog] = useState(() => getProductsCatalog());
   const [isCustomSku, setIsCustomSku] = useState(false);
+
+  useEffect(() => {
+    fetchAndSyncProductsCatalog().then((updated) => {
+      if (Array.isArray(updated) && updated.length > 0) {
+        setCatalog(updated);
+      }
+    });
+  }, []);
 
   const initialItem = catalog[0] || { sku: 'GF-CAS-001', name: 'Casserole Set A (3pc)', defaultRate: 495, category: 'Casserole' };
 
@@ -96,12 +105,21 @@ export default function CreatePO({ onOrdersCreated }) {
       productName: form.productName.trim(),
     };
 
-    addProductToCatalog({
+    const newProd = {
       sku: finalSku,
+      id: finalSku,
       name: form.productName.trim(),
       category: form.category || 'General',
       defaultRate: Number(form.rate) || 0,
-    });
+      sellingPrice: Number(form.rate) || 0,
+      mrp: Number(form.rate) || 0,
+    };
+
+    addProductToCatalog(newProd);
+    createProduct(newProd).catch((err) =>
+      console.warn('Backend product creation notice:', err.message)
+    );
+
     setCatalog(getProductsCatalog());
     setForm(updatedForm);
 

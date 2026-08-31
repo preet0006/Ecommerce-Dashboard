@@ -144,7 +144,38 @@ export async function initTables() {
       );
     `);
 
-    console.log('✅ All PostgreSQL tables (Users, Settings, POs, AI) ready in Neon!');
+    // 6. Products table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        sku VARCHAR(100) NOT NULL UNIQUE,
+        name VARCHAR(250) NOT NULL,
+        category VARCHAR(100),
+        warehouse VARCHAR(100) DEFAULT 'Bhiwandi',
+        mrp NUMERIC(10, 2),
+        cost_price NUMERIC(10, 2),
+        landed_cost NUMERIC(10, 2),
+        selling_price NUMERIC(10, 2),
+        amazon_price NUMERIC(10, 2),
+        flipkart_price NUMERIC(10, 2),
+        website_price NUMERIC(10, 2),
+        physical_stock INTEGER DEFAULT 0,
+        in_transit INTEGER DEFAULT 0,
+        reserved INTEGER DEFAULT 0,
+        sales_30d INTEGER DEFAULT 0,
+        sales_7d INTEGER DEFAULT 0,
+        avg_monthly_sales INTEGER DEFAULT 0,
+        lead_time_days INTEGER DEFAULT 14,
+        safety_stock_days INTEGER DEFAULT 5,
+        order_date VARCHAR(50),
+        last_sale_days_ago INTEGER DEFAULT 0,
+        holding_cost_pct NUMERIC(4, 2) DEFAULT 2.00,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+    `);
+
+    console.log('✅ All PostgreSQL tables (Users, Settings, POs, AI, Products) ready in Neon!');
   } catch (err) {
     console.error('❌ Table init error:', err.message);
   }

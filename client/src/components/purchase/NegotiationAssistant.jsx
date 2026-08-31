@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Sparkles, Package, Target, ShieldCheck } from 'lucide-react';
-import { getProductsCatalog } from '../../lib/productsCatalog';
+import { getProductsCatalog, fetchAndSyncProductsCatalog } from '../../lib/productsCatalog';
 
 /* ══════════════════════════════════════════════════════════════
    NEGOTIATION ASSISTANT TAB
@@ -15,8 +15,11 @@ export default function NegotiationAssistant({ pos }) {
 
   // Refresh catalog on mount/tab activation
   useEffect(() => {
-    const fresh = getProductsCatalog();
-    setCatalog(fresh);
+    fetchAndSyncProductsCatalog().then((updated) => {
+      if (Array.isArray(updated) && updated.length > 0) {
+        setCatalog(updated);
+      }
+    });
   }, []);
 
   const selectedProduct = catalog.find((p) => p.sku.toUpperCase() === sku.toUpperCase()) || catalog[0];

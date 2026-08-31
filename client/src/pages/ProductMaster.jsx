@@ -8,7 +8,9 @@ import BulkImport from '../components/productmaster/BulkImport';
 import ProductForm from '../components/productmaster/ProductForm';
 import Modal from '../components/productmaster/Modal';
 
-// Shared helpers and constants
+// API & Shared helpers
+import { getProducts, createProduct, updateProduct, bulkImportProducts } from '../lib/api';
+import { addProductToCatalog } from '../lib/productsCatalog';
 import {
   INITIAL_PRODUCTS,
   PRODUCT_MASTER_TABS,
@@ -29,8 +31,28 @@ export default function ProductMaster() {
   });
 
   const [products, setProducts]         = useState(INITIAL_PRODUCTS);
+  const [loading, setLoading]           = useState(true);
   const [modalOpen, setModalOpen]       = useState(false);
   const [modalProduct, setModalProduct] = useState(null);
+
+  // Fetch products from backend API on mount
+  const loadProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getProducts();
+      if (Array.isArray(data) && data.length > 0) {
+        setProducts(data);
+      }
+    } catch (err) {
+      console.warn('[ProductMaster] Failed to load products from API, using fallback:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   // Persist whenever tab or selected product changes
   useEffect(() => {
@@ -57,68 +79,77 @@ export default function ProductMaster() {
     setActiveTab('cost');
   }, []);
 
-  const handleSave = (form, mode) => {
+  const handleSave = async (form, mode) => {
     const sp = Number(form.sellingPrice) || 0;
     const lc = Number(form.landedCost) || 0;
     const autoContribution = sp > 0 ? ((sp - lc) / sp) * 100 : 0;
+    const skuCode = form.id?.trim().toUpperCase();
+
+    const payload = {
+      sku: skuCode,
+      id: skuCode,
+      name: form.name,
+      category: form.category,
+      mrp: Number(form.mrp) || 0,
+      sellingPrice: sp,
+      landedCost: lc,
+      contributionPct: autoContribution,
+      stock: Number(form.stock) || 0,
+      physical: Number(form.stock) || 0,
+      gst: Number(form.gst) || 0,
+      weight: Number(form.weight) || 0,
+      dimensions: form.dimensions || '',
+    };
 
     if (mode === 'add') {
-      const newProduct = {
-        id: form.id,
-        name: form.name,
-        category: form.category,
-        mrp: Number(form.mrp) || 0,
-        sellingPrice: sp,
-        landedCost: lc,
-        contributionPct: autoContribution,
-        stock: Number(form.stock) || 0,
-        gst: Number(form.gst) || 0,
-        weight: Number(form.weight) || 0,
-        dimensions: form.dimensions || '',
-      };
-      setProducts(prev => [...prev, newProduct]);
+      try {
+        const created = await createProduct(payload);
+        setProducts(prev => [created, ...prev.filter(p => p.id !== created.id)]);
+        addProductToCatalog(created);
+      } catch (err) {
+        console.error('Failed to create product on server:', err.message);
+        // Local fallback insert
+        setProducts(prev => [payload, ...prev]);
+        addProductToCatalog(payload);
+      }
     } else {
-      setProducts(prev =>
-        prev.map(p =>
-          p.id === form.id
-            ? {
-                ...p,
-                name: form.name,
-                category: form.category,
-                mrp: Number(form.mrp) || p.mrp,
-                sellingPrice: form.sellingPrice !== '' ? Number(form.sellingPrice) : p.sellingPrice,
-                landedCost: form.landedCost !== '' ? Number(form.landedCost) : p.landedCost,
-                contributionPct:
-                  (form.sellingPrice !== '' ? Number(form.sellingPrice) : p.sellingPrice) > 0
-                    ? (((form.sellingPrice !== '' ? Number(form.sellingPrice) : p.sellingPrice) -
-                        (form.landedCost !== '' ? Number(form.landedCost) : p.landedCost)) /
-                        (form.sellingPrice !== '' ? Number(form.sellingPrice) : p.sellingPrice)) *
-                      100
-                    : 0,
-                stock: form.stock !== '' ? Number(form.stock) : p.stock,
-                gst: Number(form.gst) || p.gst,
-                weight: Number(form.weight) || p.weight,
-                dimensions: form.dimensions || p.dimensions,
-              }
-            : p
-        )
-      );
+      try {
+        const updated = await updateProduct(skuCode, payload);
+        setProducts(prev => prev.map(p => (p.id === skuCode || p.sku === skuCode ? updated : p)));
+        addProductToCatalog(updated);
+      } catch (err) {
+        console.error('Failed to update product on server:', err.message);
+        // Local fallback update
+        setProducts(prev => prev.map(p => (p.id === skuCode || p.sku === skuCode ? { ...p, ...payload } : p)));
+        addProductToCatalog(payload);
+      }
     }
     closeModal();
   };
 
-  const handleBulkImport = (rows) => {
-    setProducts(prev => {
-      const existingMap = new Map(prev.map(p => [p.id, p]));
-      rows.forEach(csvRow => {
-        const existing = existingMap.get(csvRow.id);
-        existingMap.set(csvRow.id, existing
-          ? { ...existing, ...csvRow }
-          : { ...csvRow }
-        );
+  const handleBulkImport = async (rows) => {
+    try {
+      const res = await bulkImportProducts(rows);
+      if (res?.products && Array.isArray(res.products)) {
+        setProducts(res.products);
+        res.products.forEach(p => addProductToCatalog(p));
+      } else {
+        await loadProducts();
+      }
+    } catch (err) {
+      console.error('Failed to bulk import products to server:', err.message);
+      // Fallback local update
+      setProducts(prev => {
+        const existingMap = new Map(prev.map(p => [p.id, p]));
+        rows.forEach(csvRow => {
+          const existing = existingMap.get(csvRow.id);
+          const updatedItem = existing ? { ...existing, ...csvRow } : { ...csvRow };
+          existingMap.set(csvRow.id, updatedItem);
+          addProductToCatalog(updatedItem);
+        });
+        return Array.from(existingMap.values());
       });
-      return Array.from(existingMap.values());
-    });
+    }
   };
 
   return (
@@ -170,4 +201,4 @@ export default function ProductMaster() {
       </Modal>
     </div>
   );
-}
+}

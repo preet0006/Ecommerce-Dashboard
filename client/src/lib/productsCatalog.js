@@ -1,7 +1,7 @@
 /* ============================================================
    GREEN FIBRE PRODUCT & SKU CATALOG HELPER
    – Single source of truth for products & SKUs across dashboard
-   – Persists custom/newly added SKUs to localStorage
+   – Syncs with backend API & persists to localStorage
    ============================================================ */
 
 export const INITIAL_CATALOG = [
@@ -14,6 +14,33 @@ export const INITIAL_CATALOG = [
 ];
 
 const STORAGE_KEY = 'greenfibre_products_catalog';
+
+/**
+ * Fetch products from backend API and update localStorage cache
+ */
+export async function fetchAndSyncProductsCatalog() {
+  try {
+    const res = await fetch('/api/products');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const formatted = data.map(p => ({
+          sku: p.sku || p.id,
+          name: p.name,
+          category: p.category || 'General',
+          defaultRate: Number(p.sellingPrice || p.mrp || 0),
+          moq: Number(p.stock || 100),
+          addedAt: p.createdAt || new Date().toISOString(),
+        }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
+        return formatted;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not sync products catalog from backend:', err);
+  }
+  return getProductsCatalog();
+}
 
 /**
  * Get all available products from catalog (combining initial products with any custom created ones)
@@ -29,9 +56,9 @@ export function getProductsCatalog() {
     const map = new Map();
     INITIAL_CATALOG.forEach((item) => map.set(item.sku.trim().toUpperCase(), item));
     custom.forEach((item) => {
-      if (item && item.sku) {
-        const key = item.sku.trim().toUpperCase();
-        map.set(key, { ...map.get(key), ...item });
+      if (item && (item.sku || item.id)) {
+        const key = (item.sku || item.id).trim().toUpperCase();
+        map.set(key, { ...map.get(key), ...item, sku: key });
       }
     });
     return Array.from(map.values());
@@ -45,8 +72,8 @@ export function getProductsCatalog() {
  * Add or update a product in the catalog and save to localStorage
  */
 export function addProductToCatalog(product) {
-  if (!product || (!product.sku && !product.name)) return null;
-  let normalizedSku = product.sku?.trim().toUpperCase();
+  if (!product || (!product.sku && !product.name && !product.id)) return null;
+  let normalizedSku = (product.sku || product.id)?.trim().toUpperCase();
   const normalizedName = product.name?.trim() || normalizedSku || 'General Item';
   if (!normalizedSku) {
     const clean = normalizedName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
@@ -57,8 +84,8 @@ export function addProductToCatalog(product) {
     sku: normalizedSku,
     name: normalizedName,
     category: product.category?.trim() || 'General',
-    defaultRate: Number(product.defaultRate || product.rate) || 0,
-    moq: Number(product.moq) || 100,
+    defaultRate: Number(product.defaultRate || product.rate || product.sellingPrice) || 0,
+    moq: Number(product.moq || product.stock) || 100,
     addedAt: new Date().toISOString(),
   };
 
@@ -86,3 +113,4 @@ export function findProductBySku(sku) {
   const catalog = getProductsCatalog();
   return catalog.find((p) => p.sku.toUpperCase() === sku.trim().toUpperCase()) || null;
 }
+

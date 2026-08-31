@@ -475,6 +475,14 @@ export const api = {
     request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, token, newPassword }) }),
 
   getAuthMe: () => request('/auth/me'),
+
+  // ── Products API ──────────────────────────────────────────────────────────
+  getProducts: () => request('/products'),
+  getProductBySku: (sku) => request(`/products/${encodeURIComponent(sku)}`),
+  createProduct: (product) => request('/products', { method: 'POST', body: JSON.stringify(product) }),
+  updateProduct: (sku, product) => request(`/products/${encodeURIComponent(sku)}`, { method: 'PUT', body: JSON.stringify(product) }),
+  deleteProduct: (sku) => request(`/products/${encodeURIComponent(sku)}`, { method: 'DELETE' }),
+  bulkImportProducts: (products) => request('/products/bulk', { method: 'POST', body: JSON.stringify({ products }) }),
 };
 
 export const login = (email, password) =>
@@ -501,4 +509,21 @@ export const decidePriceChange = (id, action) =>
 
 export const withdrawPriceChange = (id) =>
   request(`/price-changes/${id}/decide`, { method: 'POST', body: JSON.stringify({ action: 'withdraw' }) });
+
+export const getProducts = () => request('/products');
+
+export const getProductBySku = (sku) => request(`/products/${encodeURIComponent(sku)}`);
+
+export const createProduct = (product) =>
+  request('/products', { method: 'POST', body: JSON.stringify(product) });
+
+export const updateProduct = (sku, product) =>
+  request(`/products/${encodeURIComponent(sku)}`, { method: 'PUT', body: JSON.stringify(product) });
+
+export const deleteProduct = (sku) =>
+  request(`/products/${encodeURIComponent(sku)}`, { method: 'DELETE' });
+
+export const bulkImportProducts = (products) =>
+  request('/products/bulk', { method: 'POST', body: JSON.stringify({ products }) });
+
 
