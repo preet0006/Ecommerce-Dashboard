@@ -1,4 +1,33 @@
-import { pgTable, serial, varchar, text, integer, numeric, timestamp, unique } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, integer, numeric, timestamp, unique, boolean } from 'drizzle-orm/pg-core';
+
+// ─── Staff & Team Members Table ──────────────────────────────────────────────
+export const staffMembers = pgTable('staff_members', {
+  id:            serial('id').primaryKey(),
+  memberId:      text('member_id').notNull().unique(),
+  name:          text('name').notNull(),
+  role:          text('role').notNull(), // 'Field Sales' | 'Warehouse Helper' | 'Logistics / Driver'
+  phone:         text('phone'),
+  reportingTime: text('reporting_time').default('09:00 AM'),
+  status:        text('status').default('on_time'), // 'on_time' | 'late' | 'absent'
+  createdAt:     timestamp('created_at').defaultNow(),
+  updatedAt:     timestamp('updated_at').defaultNow(),
+});
+
+// ─── Tasks & Reminders Table ─────────────────────────────────────────────────
+export const tasks = pgTable('tasks', {
+  id:          serial('id').primaryKey(),
+  taskId:      text('task_id').notNull().unique(),
+  title:       text('title').notNull(),
+  description: text('description'),
+  reminder:    boolean('reminder').default(true),
+  reminderTime: text('reminder_time'),
+  dueDate:     text('due_date'),
+  priority:    text('priority').default('medium'),
+  completed:   boolean('completed').default(false),
+  assignedTo:  text('assigned_to').default('You'),
+  createdAt:   timestamp('created_at').defaultNow(),
+  updatedAt:   timestamp('updated_at').defaultNow(),
+});
 
 // ─── System Users (Role-Based Access Control) ───────────────────────────────
 export const systemUsers = pgTable('system_users', {

@@ -175,7 +175,40 @@ export async function initTables() {
       );
     `);
 
-    console.log('✅ All PostgreSQL tables (Users, Settings, POs, AI, Products) ready in Neon!');
+    // 7. Tasks & Reminders table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id SERIAL PRIMARY KEY,
+        task_id TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        description TEXT,
+        reminder BOOLEAN DEFAULT true,
+        reminder_time TEXT,
+        due_date TEXT,
+        priority TEXT DEFAULT 'medium',
+        completed BOOLEAN DEFAULT false,
+        assigned_to TEXT DEFAULT 'You',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // 8. Staff & Team Members table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS staff_members (
+        id SERIAL PRIMARY KEY,
+        member_id TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        phone TEXT,
+        reporting_time TEXT DEFAULT '09:00 AM',
+        status TEXT DEFAULT 'on_time',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    console.log('✅ All PostgreSQL tables (Users, Settings, POs, AI, Products, Tasks, Staff) ready in Neon!');
   } catch (err) {
     console.error('❌ Table init error:', err.message);
   }

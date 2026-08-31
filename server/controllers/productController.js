@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { products } from '../db/schema.js';
-import { eq, asc } from 'drizzle-orm';
+import { eq, or, asc } from 'drizzle-orm';
 
 const INITIAL_PRODUCTS_SEED = [
   { sku: 'GF-CAS-001', name: 'Casserole Set A (3pc)', category: 'Casserole', mrp: '1299', sellingPrice: '899', landedCost: '585', physical: 650 },
@@ -55,8 +55,13 @@ export async function getAllProducts(req, res) {
 // ── GET single product by SKU or ID ───────────────────────────────────────────
 export async function getProductBySku(req, res) {
   const { sku } = req.params;
+  const target = sku.trim().toUpperCase();
+  const numId = isNaN(Number(sku)) ? -1 : Number(sku);
+
   try {
-    const [item] = await db.select().from(products).where(eq(products.sku, sku.toUpperCase()));
+    const [item] = await db.select().from(products).where(
+      or(eq(products.sku, target), eq(products.id, numId))
+    );
     if (!item) return res.status(404).json({ message: 'Product not found' });
     res.json(formatProduct(item));
   } catch (err) {
@@ -98,29 +103,32 @@ export async function createProduct(req, res) {
   }
 }
 
-// ── PUT update product ────────────────────────────────────────────────────────
+// ── PUT/PATCH update product ──────────────────────────────────────────────────
 export async function updateProduct(req, res) {
   const { sku } = req.params;
   const { name, category, mrp, sellingPrice, landedCost, stock, physical } = req.body;
-  const targetSku = sku.trim().toUpperCase();
+  const targetSku = (sku || '').trim().toUpperCase();
+  const numId = isNaN(Number(sku)) ? -1 : Number(sku);
 
   try {
-    const [existing] = await db.select().from(products).where(eq(products.sku, targetSku));
+    const [existing] = await db.select().from(products).where(
+      or(eq(products.sku, targetSku), eq(products.id, numId))
+    );
     if (!existing) {
-      return res.status(404).json({ message: `Product with SKU ${targetSku} not found` });
+      return res.status(404).json({ message: `Product ${sku} not found` });
     }
 
     const [updated] = await db.update(products)
       .set({
-        name: name !== undefined ? name.trim() : existing.name,
-        category: category !== undefined ? category.trim() : existing.category,
-        mrp: mrp !== undefined ? String(mrp) : existing.mrp,
-        sellingPrice: sellingPrice !== undefined ? String(sellingPrice) : existing.sellingPrice,
-        landedCost: landedCost !== undefined ? String(landedCost) : existing.landedCost,
+        name: name !== undefined && name !== null ? name.trim() : existing.name,
+        category: category !== undefined && category !== null ? category.trim() : existing.category,
+        mrp: mrp !== undefined && mrp !== null ? String(mrp) : existing.mrp,
+        sellingPrice: sellingPrice !== undefined && sellingPrice !== null ? String(sellingPrice) : existing.sellingPrice,
+        landedCost: landedCost !== undefined && landedCost !== null ? String(landedCost) : existing.landedCost,
         physical: stock !== undefined ? Number(stock) : (physical !== undefined ? Number(physical) : existing.physical),
         updatedAt: new Date(),
       })
-      .where(eq(products.sku, targetSku))
+      .where(eq(products.id, existing.id))
       .returning();
 
     res.json(formatProduct(updated));

@@ -4,13 +4,14 @@ import * as schema from '../db/schema.js';
 import { desc } from 'drizzle-orm';
 
 /**
- * Primary Groq Model
+ * Primary Groq Model & Fallbacks
  */
-const PRIMARY_MODEL = 'llama-3.3-70b-versatile';
+const PRIMARY_MODEL = 'openai/gpt-oss-120b';
 const FALLBACK_MODELS = [
-  'llama-3.1-8b-instant',
-  'mixtral-8x7b-32768',
-  'gemma2-9b-it',
+  'qwen/qwen3.8-27b',
+  'groq/compound',
+  'groq/compound-mini',
+  'openai/gpt-oss-20b',
 ];
 
 /**
@@ -137,47 +138,47 @@ export async function getLiveDatabaseContext() {
  * Format complete PostgreSQL data and API architecture into full context for Groq
  */
 function formatComprehensiveDatabaseContext(dbContext) {
-  const { products, vendors, purchaseOrders, channelOrders, priceChanges, systemUsers, appSettings, stats } = dbContext;
+  const { products, vendors, purchaseOrders, channelOrders, priceChanges, systemUsers, stats } = dbContext;
 
-  // Format Products Table
+  // Format Products Table (slice top 20)
   const productLines = products.length > 0
-    ? products.map((p) =>
-        `- SKU: \`${p.sku}\` | Name: **${p.name}** | Category: ${p.category || 'General'} | Physical Stock: **${p.physical || 0} units** | In-Transit: ${p.inTransit || 0} | 30d Sales: ${p.sales30d || 0} | MRP: ₹${p.mrp || 'N/A'} | Cost Price: ₹${p.costPrice || 'N/A'} | Amazon Price: ₹${p.amazon || 'N/A'} | Flipkart Price: ₹${p.flipkart || 'N/A'} | Website Price: ₹${p.website || 'N/A'} | Lead Time: ${p.leadTimeDays || 14} days | Safety Stock: ${p.safetyStockDays || 5} days`
+    ? products.slice(0, 20).map((p) =>
+        `- SKU: \`${p.sku}\` | Name: **${p.name}** | Cat: ${p.category || 'Gen'} | Stock: **${p.physical || 0} units** | In-Transit: ${p.inTransit || 0} | 30d Sales: ${p.sales30d || 0} | MRP: ₹${p.mrp || 'N/A'} | Price: ₹${p.sellingPrice || p.mrp || 'N/A'}`
       ).join('\n')
     : 'No records in `products` table.';
 
-  // Format Vendors Table
+  // Format Vendors Table (slice top 15)
   const vendorLines = vendors.length > 0
-    ? vendors.map((v) =>
-        `- Vendor ID ${v.id}: **${v.name}** (Code: \`${v.vendorCode}\`) | Email: \`${v.email || 'N/A'}\` | Contact: ${v.contact || 'N/A'} | GSTIN: \`${v.gstin || 'N/A'}\` | Credit Terms: **${v.creditDays || 30} days** | Lead Time: **${v.leadTimeDays || 7} days** | On-Time SLA: **${v.deliveryPct}%** | Rejection Rate: **${v.rejectionPct}%**`
+    ? vendors.slice(0, 15).map((v) =>
+        `- Vendor ID ${v.id}: **${v.name}** (\`${v.vendorCode}\`) | Email: \`${v.email || 'N/A'}\` | Terms: **${v.creditDays || 30}d** | Lead: **${v.leadTimeDays || 7}d** | SLA: **${v.deliveryPct}%** | Rej: **${v.rejectionPct}%**`
       ).join('\n')
-    : 'No vendor records found in PostgreSQL `vendors` table.';
+    : 'No vendor records found in `vendors` table.';
 
-  // Format Purchase Orders Table
+  // Format Purchase Orders Table (slice top 15)
   const poLines = purchaseOrders.length > 0
-    ? purchaseOrders.map((p) =>
-        `- PO: \`${p.poNumber || `PO-${p.id}`}\` | Vendor: **${p.vendorName}** (\`${p.vendorEmail || 'N/A'}\`) | SKU: \`${p.sku}\` | Product: ${p.productName || p.sku} | Quantity: ${Number(p.quantity).toLocaleString('en-IN')} | Unit Rate: ₹${p.rate} | Total: **₹${Number(p.totalValue || (Number(p.quantity) * Number(p.rate))).toLocaleString('en-IN')}** | Status: **${p.status}** | Expected Delivery: \`${p.expectedDelivery || 'N/A'}\` | Timeline: ${p.givenDays || 14} days`
+    ? purchaseOrders.slice(0, 15).map((p) =>
+        `- PO: \`${p.poNumber || `PO-${p.id}`}\` | Vendor: **${p.vendorName}** | SKU: \`${p.sku}\` | Item: ${p.productName || p.sku} | Qty: ${Number(p.quantity).toLocaleString('en-IN')} | Rate: ₹${p.rate} | Total: **₹${Number(p.totalValue || (Number(p.quantity) * Number(p.rate))).toLocaleString('en-IN')}** | Status: **${p.status}**`
       ).join('\n')
-    : 'No purchase order records found in PostgreSQL `purchase_orders` table.';
+    : 'No purchase order records in `purchase_orders` table.';
 
-  // Format Channel Orders Table
+  // Format Channel Orders Table (slice top 10)
   const channelLines = channelOrders.length > 0
-    ? channelOrders.map((o) =>
-        `- Order: \`${o.channelOrderId}\` (${o.channel.toUpperCase()}) | Item: **${o.productName}** (SKU: \`${o.productSku || 'N/A'}\`) | Qty: ${o.quantity} | Price: ₹${Number(o.price).toLocaleString('en-IN')} | Status: **${o.status}** | Location: ${o.location || 'N/A'}`
+    ? channelOrders.slice(0, 10).map((o) =>
+        `- Order: \`${o.channelOrderId}\` (${o.channel.toUpperCase()}) | Item: **${o.productName}** | Qty: ${o.quantity} | Price: ₹${Number(o.price).toLocaleString('en-IN')} | Status: **${o.status}**`
       ).join('\n')
-    : 'No channel order records found in PostgreSQL `channel_orders` table.';
+    : 'No channel orders in `channel_orders` table.';
 
   // Format Price Changes Table
   const priceChangeLines = priceChanges.length > 0
-    ? priceChanges.map((pc) =>
-        `- Price Change #${pc.id}: SKU \`${pc.sku}\` on ${pc.channel.toUpperCase()} from ₹${pc.fromPrice} to ₹${pc.toPrice} (Margin: ${pc.marginAfterPct || 'N/A'}%) — Status: **${pc.status}** (Requested by: ${pc.requestedBy})`
+    ? priceChanges.slice(0, 10).map((pc) =>
+        `- Price Change #${pc.id}: SKU \`${pc.sku}\` on ${pc.channel.toUpperCase()} from ₹${pc.fromPrice} to ₹${pc.toPrice} (Margin: ${pc.marginAfterPct || 'N/A'}%) — Status: **${pc.status}**`
       ).join('\n')
     : 'No pending price change records in `price_changes` table.';
 
   // Format System Users
   const userLines = systemUsers.length > 0
-    ? systemUsers.map((u) =>
-        `- User: **${u.name}** (\`${u.email}\`) | Role: **${u.role}** | Department: ${u.department || 'General'} | Status: ${u.status}`
+    ? systemUsers.slice(0, 10).map((u) =>
+        `- User: **${u.name}** (\`${u.email}\`) | Role: **${u.role}** | Dept: ${u.department || 'General'}`
       ).join('\n')
     : 'Default Admin User active.';
 
@@ -188,7 +189,7 @@ function formatComprehensiveDatabaseContext(dbContext) {
 
   return `
 ================================================================================
-🏢 GREENFIBRE ENTERPRISE ERP — COMPLETE LIVE DATABASE & API SPECIFICATION
+🏢 GREENFIBRE ENTERPRISE ERP — LIVE DATABASE & API SPECIFICATION
 ================================================================================
 
 ### 1. LIVE SYSTEM KPIS:
@@ -216,7 +217,7 @@ ${priceChangeLines}
 ### 7. SYSTEM USERS & RBAC TABLE (\`system_users\`):
 ${userLines}
 
-### 8. COMPLETE BACKEND REST API DIRECTORY:
+### 8. BACKEND REST API DIRECTORY:
 ${apiLines}
 ================================================================================`;
 }
