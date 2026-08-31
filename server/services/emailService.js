@@ -659,4 +659,231 @@ export async function sendPasswordResetEmail({ to, name, resetUrl }) {
   return { success: true, previewUrl: previewUrl || null };
 }
 
+export async function sendPushRecommendationEmail({ to, recommendations, baseUrl = 'http://localhost:3001' }) {
+  const transporter = await getTransporter();
+  const sender = process.env.SMTP_FROM || '"GreenFibre Procurement" <no-reply@greenfibre.com>';
+  const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  let cleanBaseUrl = (baseUrl || process.env.APP_BASE_URL || 'http://localhost:3001').trim();
+  if (!cleanBaseUrl.startsWith('http://') && !cleanBaseUrl.startsWith('https://')) {
+    cleanBaseUrl = `http://${cleanBaseUrl}`;
+  }
+  cleanBaseUrl = cleanBaseUrl.replace(/\/+$/, '');
+
+  const dashboardUrl = process.env.APP_FRONTEND_URL || 'http://localhost:5173';
+
+  function getChannelBadge(channel) {
+    const ch = String(channel || '').toLowerCase();
+    if (ch === 'amazon') {
+      return `<span style="display:inline-block;background:#fff8ee;color:#b45309;font-size:11px;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;padding:5px 12px;border-radius:20px;border:1px solid #fde68a;">Target: Amazon</span>`;
+    }
+    if (ch === 'flipkart') {
+      return `<span style="display:inline-block;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;padding:5px 12px;border-radius:20px;border:1px solid #bfdbfe;">Target: Flipkart</span>`;
+    }
+    return `<span style="display:inline-block;background:#ecfdf5;color:#047857;font-size:11px;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;padding:5px 12px;border-radius:20px;border:1px solid #a7f3d0;">Target: Direct Store</span>`;
+  }
+
+  const cardsHtml = recommendations.map((r) => {
+    let tags = [];
+    if (Array.isArray(r.reasonTags)) {
+      tags = r.reasonTags;
+    } else if (typeof r.reasonTags === 'string') {
+      try {
+        tags = JSON.parse(r.reasonTags);
+      } catch {
+        tags = [r.reasonTags];
+      }
+    }
+    if (!Array.isArray(tags)) tags = [];
+
+    const token = String(r.approvalToken || r.approval_token || '').trim();
+    const approveUrl = `${cleanBaseUrl}/api/push-recommendations/${r.id}/decide?token=${encodeURIComponent(token)}&action=approve`;
+    const dismissUrl = `${cleanBaseUrl}/api/push-recommendations/${r.id}/decide?token=${encodeURIComponent(token)}&action=dismiss`;
+
+    return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background:#ffffff;border:1px solid #dce5df;border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(18,56,36,0.04);">
+      <!-- Card Header -->
+      <tr>
+        <td style="padding:16px 22px;background:#f7faf8;border-bottom:1px solid #e6ede8;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="vertical-align:middle;">
+                <span style="display:inline-block;font-family:'SFMono-Regular',Consolas,Menlo,monospace;font-size:12px;font-weight:700;color:#1e3a2c;background:#e8f0eb;padding:4px 9px;border-radius:6px;border:1px solid #cfded4;">
+                  ${r.sku}
+                </span>
+                ${r.category ? `
+                <span style="display:inline-block;font-size:11.5px;font-weight:600;color:#576d61;margin-left:8px;">
+                  • ${r.category}
+                </span>` : ''}
+              </td>
+              <td style="text-align:right;vertical-align:middle;">
+                ${getChannelBadge(r.recommendedChannel)}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- Card Body -->
+      <tr>
+        <td style="padding:22px;">
+          <div style="font-size:17px;font-weight:800;color:#111827;margin-bottom:14px;line-height:1.3;">
+            ${r.productName || r.sku}
+          </div>
+
+          <!-- Key Metrics Grid -->
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:18px;background:#f9fbf9;border:1px solid #e6eee8;border-radius:10px;overflow:hidden;">
+            <tr>
+              <td style="padding:12px 14px;border-right:1px solid #e6eee8;width:33%;">
+                <div style="font-size:10.5px;font-weight:700;color:#6b7f73;text-transform:uppercase;letter-spacing:0.5px;">Sell-Through (30d)</div>
+                <div style="font-size:15px;font-weight:800;color:#16231d;margin-top:3px;">${r.sellThroughPct != null ? `${r.sellThroughPct}%` : '—'}</div>
+              </td>
+              <td style="padding:12px 14px;border-right:1px solid #e6eee8;width:33%;">
+                <div style="font-size:10.5px;font-weight:700;color:#6b7f73;text-transform:uppercase;letter-spacing:0.5px;">Stock Cover</div>
+                <div style="font-size:15px;font-weight:800;color:#16231d;margin-top:3px;">${r.daysCover != null ? `${r.daysCover} days` : '—'}</div>
+              </td>
+              <td style="padding:12px 14px;width:34%;">
+                <div style="font-size:10.5px;font-weight:700;color:#6b7f73;text-transform:uppercase;letter-spacing:0.5px;">Margin %</div>
+                <div style="font-size:15px;font-weight:800;color:#16231d;margin-top:3px;">${r.marginPct != null ? `${r.marginPct}%` : '—'}</div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Reason Bullets -->
+          <div style="margin-bottom:14px;">
+            <div style="font-size:11px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
+              Trigger Analysis
+            </div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              ${tags.map(t => `
+                <tr>
+                  <td style="width:20px;vertical-align:top;padding:3px 0;color:#135235;font-weight:bold;font-size:13px;">✦</td>
+                  <td style="padding:3px 0;font-size:13px;color:#374151;line-height:1.45;">${t}</td>
+                </tr>
+              `).join('')}
+            </table>
+          </div>
+
+          <!-- Suggested Action Callout -->
+          <div style="padding:12px 16px;background:#f0f6f2;border-left:4px solid #135235;border-radius:0 8px 8px 0;font-size:12.5px;color:#2c4436;line-height:1.5;margin-bottom:20px;">
+            <strong style="color:#0e3d27;">Recommended Action:</strong> ${r.suggestedAction}
+          </div>
+
+          <!-- Action Buttons -->
+          ${token ? `
+          <div style="padding-top:14px;border-top:1px solid #edf2ee;">
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="border-radius:8px;background:#135235;">
+                  <a href="${approveUrl}" target="_blank" style="display:inline-block;padding:10px 22px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:8px;">
+                    ✓ Approve &amp; Push to ${String(r.recommendedChannel || 'channel').toUpperCase()}
+                  </a>
+                </td>
+                <td style="width:12px;"></td>
+                <td style="border-radius:8px;border:1px solid #d1d5db;background:#ffffff;">
+                  <a href="${dismissUrl}" target="_blank" style="display:inline-block;padding:9px 18px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;font-weight:600;color:#4b5563;text-decoration:none;border-radius:8px;">
+                    ✕ Dismiss
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </div>
+          ` : ''}
+        </td>
+      </tr>
+    </table>`;
+  }).join('');
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Push Recommendations</title>
+</head>
+<body style="margin:0;padding:28px 12px;background:#ebf0ec;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#16231d;">
+  <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:18px;border:1px solid #d4dfd7;overflow:hidden;box-shadow:0 12px 36px rgba(0,0,0,0.06);">
+    
+    <!-- Premium Header -->
+    <div style="background:linear-gradient(135deg,#071f15 0%,#0d3824 50%,#155d3b 100%);padding:30px 32px;color:#ffffff;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td>
+            <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#85cca7;margin-bottom:6px;">
+              GREEN FIBRE · PROCUREMENT &amp; SALES DISPATCH
+            </div>
+            <h1 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;line-height:1.2;">
+              Sales Push Recommendations
+            </h1>
+            <div style="font-size:13px;color:#c9ddd0;margin-top:6px;">
+              ${today} · <strong style="color:#ffffff;">${recommendations.length} item(s)</strong> flagged for 1-click admin approval
+            </div>
+          </td>
+          <td style="text-align:right;vertical-align:top;">
+            <div style="display:inline-block;background:rgba(255,255,255,0.12);padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.18);font-size:12px;font-weight:700;color:#ffffff;">
+              Action Required
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Intro Text -->
+    <div style="padding:22px 26px 8px 26px;">
+      <p style="margin:0 0 16px 0;font-size:13.5px;color:#4a5c52;line-height:1.55;">
+        Our automated inventory-velocity scan identified the following products with low sell-through, elevated stock cover, or underexposed channel listings. 
+        Please review the computed metrics below and approve or dismiss each recommendation with a single click.
+      </p>
+    </div>
+
+    <!-- Cards Container -->
+    <div style="padding:0 26px 12px 26px;">
+      ${cardsHtml}
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:20px 26px 26px 26px;background:#f7faf8;border-top:1px solid #e5ede7;text-align:center;">
+      <p style="margin:0 0 8px 0;font-size:12.5px;color:#6b7f73;">
+        Approvals are processed immediately and synced directly with your live dashboard.
+      </p>
+      <a href="${dashboardUrl}/forecasting" target="_blank" style="display:inline-block;font-size:12.5px;font-weight:700;color:#135235;text-decoration:underline;">
+        Open GreenFibre Demand Forecasting Dashboard →
+      </a>
+      <div style="margin-top:12px;font-size:11px;color:#94a398;">
+        Sent to ${to} · GreenFibre Automated Inventory Intelligence
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>`;
+
+  const textLines = recommendations.map(r => {
+    let tags = [];
+    if (Array.isArray(r.reasonTags)) tags = r.reasonTags;
+    else if (typeof r.reasonTags === 'string') {
+      try { tags = JSON.parse(r.reasonTags); } catch { tags = [r.reasonTags]; }
+    }
+    const token = String(r.approvalToken || r.approval_token || '').trim();
+    const approveUrl = `${cleanBaseUrl}/api/push-recommendations/${r.id}/decide?token=${encodeURIComponent(token)}&action=approve`;
+    const dismissUrl = `${cleanBaseUrl}/api/push-recommendations/${r.id}/decide?token=${encodeURIComponent(token)}&action=dismiss`;
+    return `SKU: ${r.sku}\nProduct: ${r.productName || r.sku}\nPush Target: ${r.recommendedChannel}\nReasons: ${(tags || []).join('; ')}\nSuggested Action: ${r.suggestedAction}\nApprove: ${approveUrl}\nDismiss: ${dismissUrl}`;
+  }).join('\n\n' + '='.repeat(40) + '\n\n');
+
+  const info = await transporter.sendMail({
+    from: sender,
+    to,
+    subject: `⚡ Sales Push Action Required: ${recommendations.length} Product(s) Flagged (${today})`,
+    text: textLines,
+    html,
+  });
+
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+  console.log(`✉️ Push recommendation email dispatched to ${to}`);
+  if (previewUrl) console.log(`🔗 Ethereal Preview: ${previewUrl}`);
+  return { success: true, previewUrl: previewUrl || null };
+}
+
+
 

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
-import { login as loginApi } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import greenfibreLeaves from '../assets/greenfibre-leaves.png';
 import greenfibreGLogo from '../assets/greenfibre-g-logo.png';
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -22,13 +23,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const res = await loginApi(email, password);
-      const token = res.token;
-      const user = res.user;
-
-      const storage = remember ? localStorage : sessionStorage;
-      storage.setItem('gf_auth_token', token);
-      storage.setItem('gf_auth_user', JSON.stringify(user));
+      await login(email, password, remember);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid email or password');

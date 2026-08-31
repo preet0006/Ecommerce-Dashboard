@@ -10,6 +10,7 @@ import priceChangeRoutes from './routes/priceChanges.js';
 import authRoutes from './routes/auth.js';
 import dashboardRoutes from './routes/dashboard.js';
 import productRoutes from './routes/products.js';
+import pushRecommendationRoutes from './routes/pushRecommendations.js';
 import { runMockChannelSync } from './jobs/mockChannelSync.js';
 import { initTables } from './db/initTables.js';
 import { startVendorFollowUpCron } from './jobs/vendorFollowupCron.js';
@@ -43,6 +44,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/price-changes', priceChangeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/push-recommendations', pushRecommendationRoutes);
 
 
 // ── 404 fallback ────────────────────────────────────────────────────

@@ -483,6 +483,18 @@ export const api = {
   updateProduct: (sku, product) => request(`/products/${encodeURIComponent(sku)}`, { method: 'PUT', body: JSON.stringify(product) }),
   deleteProduct: (sku) => request(`/products/${encodeURIComponent(sku)}`, { method: 'DELETE' }),
   bulkImportProducts: (products) => request('/products/bulk', { method: 'POST', body: JSON.stringify({ products }) }),
+
+  // ── Push Recommendations API ───────────────────────────────────────────
+  generatePushRecommendations: (candidates) =>
+    request('/push-recommendations/generate', { method: 'POST', body: JSON.stringify({ candidates }) }),
+
+  getPushRecommendations: (status) => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return request(`/push-recommendations${qs}`);
+  },
+
+  updatePushRecommendationStatus: (id, status) =>
+    request(`/push-recommendations/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 };
 
 export const login = (email, password) =>
@@ -525,5 +537,19 @@ export const deleteProduct = (sku) =>
 
 export const bulkImportProducts = (products) =>
   request('/products/bulk', { method: 'POST', body: JSON.stringify({ products }) });
+
+export const generatePushRecommendations = (candidates, force = false) =>
+  request('/push-recommendations/generate', { method: 'POST', body: JSON.stringify({ candidates, force }) });
+
+export const resendPushRecommendationsEmail = () =>
+  request('/push-recommendations/resend', { method: 'POST' });
+
+export const getPushRecommendations = (status) => {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+  return request(`/push-recommendations${qs}`);
+};
+
+export const updatePushRecommendationStatus = (id, status) =>
+  request(`/push-recommendations/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
 
 

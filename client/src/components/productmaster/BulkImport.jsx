@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X } from 'lucide-react';
-import { parseCSV } from './utils';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X, Download } from 'lucide-react';
+import { parseCSV, downloadProductsCSV } from './utils';
 
 export default function BulkImport({ onImport, existingProducts }) {
   const [fileName,    setFileName]    = useState(null);
@@ -67,12 +67,25 @@ export default function BulkImport({ onImport, existingProducts }) {
 
   return (
     <div className="card p-6 max-w-3xl animate-enter">
-      <h3 className="font-display font-semibold text-lg mb-1">Bulk Import Products</h3>
-      <p className="text-sm text-ink-muted mb-1">
-        Upload a CSV with columns:
-        <span className="font-mono text-xs ml-1">
-          sku, name, category, mrp, gst, weight, dimensions, selling_price, landed_cost, stock
-        </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+        <div>
+          <h3 className="font-display font-semibold text-lg mb-1">Bulk Import Products</h3>
+          <p className="text-sm text-ink-muted">
+            Upload a CSV with your product catalogue. Missing values will be auto-completed from known items.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn-outline text-xs shrink-0 flex items-center gap-1.5 self-start sm:self-auto"
+          onClick={() => downloadProductsCSV(existingProducts)}
+          title="Download the full product catalogue CSV template"
+        >
+          <Download size={14} /> Download Sample CSV
+        </button>
+      </div>
+
+      <p className="text-xs font-mono text-ink-muted mb-3 bg-surface-raised p-2 rounded border border-border">
+        Expected Headers: sku, name, category, mrp, gst, weight, dimensions, selling_price, landed_cost, stock
       </p>
 
       {/* Drop zone */}
@@ -92,7 +105,7 @@ export default function BulkImport({ onImport, existingProducts }) {
             ? <span className="font-medium" style={{ color: 'var(--color-ink)' }}>{fileName}</span>
             : 'Click to select a CSV file, or drag it here'}
         </span>
-        <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
+        <input ref={inputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
       </label>
 
       {error && (
@@ -120,13 +133,13 @@ export default function BulkImport({ onImport, existingProducts }) {
           <p className="text-sm font-medium mb-2">
             Preview — {preview.length} row{preview.length > 1 ? 's' : ''} detected
           </p>
-          <div style={{ overflowX: 'auto', maxHeight: 240, overflowY: 'auto', borderRadius: 8, border: '1px solid var(--color-border)' }}>
+          <div style={{ overflowX: 'auto', maxHeight: 280, overflowY: 'auto', borderRadius: 8, border: '1px solid var(--color-border)' }}>
             <table className="table-clean text-xs" style={{ width: '100%' }}>
               <thead style={{ position: 'sticky', top: 0, background: 'var(--color-bg)', zIndex: 1 }}>
                 <tr>
                   <th style={{ paddingLeft: 10 }}>Status</th>
                   <th>SKU</th><th>Name</th><th>Category</th>
-                  <th>MRP</th><th>Sell Price</th><th>Stock</th>
+                  <th>MRP</th><th>Selling Price</th><th>Landed Cost</th><th>Stock</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,11 +155,12 @@ export default function BulkImport({ onImport, existingProducts }) {
                         : <span className="badge" style={{ background: '#e8f0fe', color: '#1a56db', fontSize: 10 }}>↺ Update</span>}
                     </td>
                     <td className="font-mono">{p.id}</td>
-                    <td>{p.name}</td>
+                    <td className="font-medium">{p.name}</td>
                     <td>{p.category}</td>
-                    <td>₹{p.mrp}</td>
-                    <td>₹{p.sellingPrice}</td>
-                    <td>{p.stock}</td>
+                    <td>₹{Number(p.mrp || 0).toLocaleString('en-IN')}</td>
+                    <td>₹{Number(p.sellingPrice || 0).toLocaleString('en-IN')}</td>
+                    <td>₹{Number(p.landedCost || 0).toLocaleString('en-IN')}</td>
+                    <td>{Number(p.stock || 0).toLocaleString('en-IN')}</td>
                   </tr>
                 ))}
               </tbody>

@@ -15,10 +15,12 @@ import {
   Sun,
   Moon,
   LogOut,
+  User,
+  Shield,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext";
-import { logout } from "../../lib/api";
+import { useAuth, getUserInitials } from "../../context/AuthContext";
 import greenfibreLeaves from "../../assets/greenfibre-leaves.png";
 
 export const NAV_ITEMS = [
@@ -56,12 +58,14 @@ const prefetchRoute = (path) => {
 
 export default function Sidebar() {
   const { isDark, toggleTheme } = useTheme();
+  const { user, openLogoutConfirm, openUserInfoModal } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
-    navigate("/login");
+    openLogoutConfirm();
   };
+
+  const userInitials = getUserInitials(user);
 
   return (
     <aside className="hidden lg:flex w-60 shrink-0 flex-col border-r border-border bg-surface p-4 sticky top-0 h-screen overflow-y-auto z-30 select-none transition-colors">
@@ -110,6 +114,28 @@ export default function Sidebar() {
 
       {/* Sidebar Footer */}
       <div className="mt-auto pt-4 flex flex-col gap-1 shrink-0 border-t border-border/60">
+        {/* Clickable User Info Card in Sidebar */}
+        {user && (
+          <button
+            type="button"
+            onClick={openUserInfoModal}
+            className="flex items-center gap-2.5 p-2 rounded-xl border border-border bg-surface-raised/80 hover:bg-surface-raised hover:border-primary/40 transition-all text-left mb-1 group"
+            title="Click to view user information"
+          >
+            <div className="h-8 w-8 rounded-lg bg-primary text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+              {userInitials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-semibold text-ink truncate leading-tight flex items-center justify-between">
+                <span>{user.name}</span>
+              </div>
+              <span className="text-[10px] text-ink-muted capitalize">
+                {user.role} · {user.department ? user.department.split(' ')[0] : 'Admin'}
+              </span>
+            </div>
+          </button>
+        )}
+
         <NavLink
           to="/ai"
           onMouseEnter={() => prefetchRoute("/ai")}
@@ -169,6 +195,7 @@ export default function Sidebar() {
  */
 export function MobileSidebarDrawer({ open, onClose }) {
   const { isDark, toggleTheme } = useTheme();
+  const { user, openLogoutConfirm, openUserInfoModal } = useAuth();
 
   // Close on Escape key
   useEffect(() => {
@@ -188,6 +215,8 @@ export function MobileSidebarDrawer({ open, onClose }) {
   }, [open, onClose]);
 
   if (!open) return null;
+
+  const userInitials = getUserInitials(user);
 
   return (
     <div className="fixed inset-0 z-50 lg:hidden flex animate-enter">
@@ -232,6 +261,28 @@ export function MobileSidebarDrawer({ open, onClose }) {
             <X size={18} />
           </button>
         </div>
+
+        {/* User Card in Mobile Drawer */}
+        {user && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              openUserInfoModal();
+            }}
+            className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border bg-surface-raised mb-4 text-left"
+          >
+            <div className="h-9 w-9 rounded-lg bg-primary text-white text-xs font-bold flex items-center justify-center shrink-0">
+              {userInitials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-semibold text-ink truncate">{user.name}</div>
+              <span className="text-[10px] text-ink-muted capitalize">
+                {user.role} · View profile
+              </span>
+            </div>
+          </button>
+        )}
 
         {/* Navigation links */}
         <nav className="flex flex-col gap-1 flex-1">
@@ -298,7 +349,7 @@ export function MobileSidebarDrawer({ open, onClose }) {
             type="button"
             onClick={() => {
               onClose();
-              handleLogout();
+              openLogoutConfirm();
             }}
             className="sidebar-link !text-red hover:!bg-red-soft/30 transition-colors mt-1"
           >

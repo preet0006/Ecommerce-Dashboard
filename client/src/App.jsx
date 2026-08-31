@@ -6,6 +6,10 @@ import PageSkeleton from "./components/common/PageSkeleton";
 import { BrowserRouter, Route, Routes, useLocation, NavLink } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import { FontProvider } from "./context/FontContext";
+import { AuthProvider } from "./context/AuthContext";
+import LoginModal from "./components/auth/LoginModal";
+import UserInfoModal from "./components/auth/UserInfoModal";
+import LogoutConfirmModal from "./components/auth/LogoutConfirmModal";
 import {
   LayoutDashboard,
   Package,
@@ -63,8 +67,13 @@ function AppContent() {
         {/* Conditional Topbar (hidden on full-height /ai page) */}
         {!isAiPage && <Topbar onMenuClick={() => setMobileMenuOpen(true)} />}
 
-        {/* Delivery Arrival Verification Check Modal */}
+        {/* Automatic Delivery Arrival Verification Check on Homescreen / Dashboard */}
         <DeliveryArrivalModal />
+
+        {/* Global User Authentication & Profile Dialog Modals */}
+        <LoginModal />
+        <UserInfoModal />
+        <LogoutConfirmModal />
 
         <main className="flex-1">
           <Suspense fallback={<PageSkeleton />}>
@@ -117,8 +126,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <FontProvider>
-        <BrowserRouter>
-          <Suspense fallback={<PageSkeleton />}>
+        <AuthProvider>
+          <BrowserRouter>
+            <Suspense fallback={<PageSkeleton />}>
             <Routes>
               {/* Public Unprotected Auth Routes */}
               <Route path="/login" element={<Login />} />
@@ -135,8 +145,9 @@ export default function App() {
                 }
               />
             </Routes>
-          </Suspense>
-        </BrowserRouter>
+            </Suspense>
+          </BrowserRouter>
+        </AuthProvider>
       </FontProvider>
     </ThemeProvider>
   );
