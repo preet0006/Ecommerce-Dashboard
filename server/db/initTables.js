@@ -30,17 +30,22 @@ export async function initTables() {
     await db.execute(`
       ALTER TABLE system_users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP
     `);
+    await db.execute(`
+      ALTER TABLE system_users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)
+    `);
 
     // Ensure password column exists if table was created previously
     await db.execute(`
       ALTER TABLE system_users ADD COLUMN IF NOT EXISTS password VARCHAR(255) DEFAULT 'GreenFibre@2026';
     `);
 
-    // Seed default Admin and Reader users if table is empty
+    // Seed default Admin, Manager, Sales, and Reader users if table is empty
     await db.execute(`
       INSERT INTO system_users (name, email, password, role, status, department, avatar)
       VALUES 
         ('Rahul Joshi', 'admin@greenfibre.com', 'Admin@1234', 'admin', 'active', 'Executive Management', 'RJ'),
+        ('Vikram Mehta', 'manager@greenfibre.com', 'Manager@1234', 'manager', 'active', 'Operations & Sales', 'VM'),
+        ('Amit Sharma', 'sales@greenfibre.com', 'Sales@1234', 'sales', 'active', 'Field Sales', 'AS'),
         ('Pooja Patel', 'pooja.patel@greenfibre.com', 'Reader@1234', 'reader', 'active', 'Inventory Auditing', 'PP')
       ON CONFLICT (email) DO NOTHING;
     `);
@@ -175,7 +180,7 @@ export async function initTables() {
       );
     `);
 
-    // 7. Tasks & Reminders table
+    // 7. Tasks & Reminders table (Multi-User & Role-Based RBAC)
     await db.execute(`
       CREATE TABLE IF NOT EXISTS tasks (
         id SERIAL PRIMARY KEY,
@@ -187,11 +192,80 @@ export async function initTables() {
         due_date TEXT,
         priority TEXT DEFAULT 'medium',
         completed BOOLEAN DEFAULT false,
+        completed_at TIMESTAMP,
+        status VARCHAR(30) DEFAULT 'pending',
+        created_by TEXT DEFAULT 'Admin',
+        created_by_id INTEGER,
+        created_by_role VARCHAR(50) DEFAULT 'admin',
         assigned_to TEXT DEFAULT 'You',
+        assigned_to_id INTEGER,
+        assigned_to_role VARCHAR(50) DEFAULT 'all',
+        department VARCHAR(100) DEFAULT 'General',
+        category VARCHAR(100) DEFAULT 'General',
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
+
+    // Ensure all role-based task columns exist if tasks table was created previously
+    const taskAlterQueries = [
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;`,
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'pending';`,
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT 'Admin';`,
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_by_id INTEGER;`,
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_by_role VARCHAR(50) DEFAULT 'admin';`,
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assigned_to_id INTEGER;`,
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assigned_to_role VARCHAR(50) DEFAULT 'all';`,
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT 'General';`,
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'General';`,
+    ];
+
+    for (const q of taskAlterQueries) {
+      await db.execute(q);
+    }
+
+    // Seed default role-differentiated sample tasks if tasks table is empty
+    const existingTasksCount = await db.execute(`SELECT count(*) as count FROM tasks;`);
+    const count = Number(existingTasksCount.rows?.[0]?.count ?? existingTasksCount[0]?.count ?? 0);
+    if (count === 0) {
+      console.log('🌱 Seeding initial multi-role tasks (Admin, Manager, Sales Team)...');
+      await db.execute(`
+        INSERT INTO tasks (
+          task_id, title, description, reminder, reminder_time, due_date, priority, completed, status,
+          created_by, created_by_role, assigned_to, assigned_to_role, department, category
+        )
+        VALUES 
+          (
+            't_admin_101', 
+            'Review Monthly Revenue & Channel Profitability', 
+            'Audit Flipkart, Amazon, and Website margins for Q3 strategy alignment.',
+            true, '10:00 AM', '${new Date(Date.now() + 86400000).toISOString()}', 'high', false, 'pending',
+            'Rahul Joshi (Admin)', 'admin', 'Rahul Joshi', 'admin', 'Executive Management', 'Executive'
+          ),
+          (
+            't_mgr_201', 
+            'Audit Bhiwandi Warehouse Inbound Dispatches', 
+            'Coordinate with logistics helper team to verify 450 units GF-CAS-001 batch.',
+            true, '02:30 PM', '${new Date(Date.now() + 172800000).toISOString()}', 'medium', false, 'in_progress',
+            'Vikram Mehta (Manager)', 'manager', 'Vikram Mehta', 'manager', 'Operations', 'Inventory Audit'
+          ),
+          (
+            't_sales_301', 
+            'Follow up with Retail Distributor regarding Bulk Festive Order', 
+            'Call Metro Garments buyer regarding 300 units cotton denim re-order.',
+            true, '11:15 AM', '${new Date(Date.now() + 43200000).toISOString()}', 'high', false, 'pending',
+            'Amit Sharma (Sales)', 'sales', 'Amit Sharma', 'sales', 'Sales', 'Sales Follow-up'
+          ),
+          (
+            't_sales_302', 
+            'Collect Field Feedback on New Polo Shirts Samples', 
+            'Visit 5 retail store counters in Mumbai and record vendor fitment reviews.',
+            false, '04:00 PM', '${new Date(Date.now() + 259200000).toISOString()}', 'medium', false, 'pending',
+            'Amit Sharma (Sales)', 'sales', 'Field Sales Team', 'sales', 'Sales', 'Field Visits'
+          )
+        ON CONFLICT (task_id) DO NOTHING;
+      `);
+    }
 
     // 8. Staff & Team Members table
     await db.execute(`

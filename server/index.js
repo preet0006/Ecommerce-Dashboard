@@ -12,6 +12,8 @@ import dashboardRoutes from './routes/dashboard.js';
 import productRoutes from './routes/products.js';
 import taskRoutes from './routes/tasks.js';
 import staffRoutes from './routes/staff.js';
+import salesRoutes from './routes/sales.js';
+import inventoryRoutes from './routes/inventory.js';
 import { runMockChannelSync } from './jobs/mockChannelSync.js';
 import { initTables } from './db/initTables.js';
 import { startVendorFollowUpCron } from './jobs/vendorFollowupCron.js';
@@ -39,15 +41,19 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/pos', poRoutes);
+app.use('/api/purchase-orders', poRoutes);
 app.use('/api/channel-orders', channelOrderRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/price-changes', priceChangeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/inventory', inventoryRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/team', staffRoutes);
+app.use('/api/sales', salesRoutes);
+
 
 
 // ── 404 fallback ────────────────────────────────────────────────────

@@ -52,6 +52,82 @@ export async function getAllProducts(req, res) {
   }
 }
 
+// ── GET products summary KPI metrics ──────────────────────────────────────────
+export async function getProductSummary(req, res) {
+  try {
+    let rows = await db.select().from(products);
+    if (rows.length === 0) {
+      await db.insert(products).values(INITIAL_PRODUCTS_SEED).onConflictDoNothing();
+      rows = await db.select().from(products);
+    }
+
+    const items = rows.map(formatProduct);
+    const totalProducts = items.length;
+    const totalPhysicalStock = items.reduce((sum, p) => sum + p.stock, 0);
+    const totalInventoryValue = items.reduce((sum, p) => sum + (p.stock * p.landedCost), 0);
+    const totalRetailValue = items.reduce((sum, p) => sum + (p.stock * p.sellingPrice), 0);
+    const lowStockCount = items.filter((p) => p.stock > 0 && p.stock < 100).length;
+    const outOfStockCount = items.filter((p) => p.stock === 0).length;
+
+    const categorySet = new Set(items.map((p) => p.category));
+    const categoriesCount = categorySet.size;
+
+    return res.json({
+      totalProducts,
+      totalStock: totalPhysicalStock,
+      totalPhysicalStock,
+      totalInventoryValue: Math.round(totalInventoryValue),
+      totalRetailValue: Math.round(totalRetailValue),
+      lowStockCount,
+      outOfStockCount,
+      categoriesCount,
+      categories: Array.from(categorySet),
+    });
+  } catch (err) {
+    console.error('[productController.getProductSummary]', err);
+    res.status(500).json({ message: 'Failed to fetch product summary', error: err.message });
+  }
+}
+
+// ── GET distinct product categories ───────────────────────────────────────────
+export async function getProductCategories(req, res) {
+  try {
+    let rows = await db.select().from(products);
+    if (rows.length === 0) {
+      await db.insert(products).values(INITIAL_PRODUCTS_SEED).onConflictDoNothing();
+      rows = await db.select().from(products);
+    }
+
+    const items = rows.map(formatProduct);
+    const catMap = {};
+
+    items.forEach((p) => {
+      const cat = p.category || 'General';
+      if (!catMap[cat]) {
+        catMap[cat] = {
+          name: cat,
+          category: cat,
+          count: 0,
+          totalStock: 0,
+          totalValue: 0,
+          skus: [],
+        };
+      }
+      catMap[cat].count += 1;
+      catMap[cat].totalStock += p.stock;
+      catMap[cat].totalValue += p.stock * p.sellingPrice;
+      catMap[cat].skus.push(p.sku);
+    });
+
+    const categoryList = Object.values(catMap);
+    return res.json(categoryList);
+  } catch (err) {
+    console.error('[productController.getProductCategories]', err);
+    res.status(500).json({ message: 'Failed to fetch categories', error: err.message });
+  }
+}
+
+
 // ── GET single product by SKU or ID ───────────────────────────────────────────
 export async function getProductBySku(req, res) {
   const { sku } = req.params;

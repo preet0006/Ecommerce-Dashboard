@@ -56,8 +56,8 @@ export async function createSystemUser(req, res) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password.trim();
-    const cleanRole = ['admin', 'manager', 'reader'].includes(role) ? role : 'reader';
+    const ALLOWED_ROLES = ['admin', 'manager', 'sales', 'field_sales', 'staff', 'reader'];
+    const cleanRole = ALLOWED_ROLES.includes(role.toLowerCase()) ? role.toLowerCase() : 'reader';
 
     // Compute initials avatar
     const parts = name.trim().split(' ');
@@ -120,7 +120,9 @@ export async function updateSystemUser(req, res) {
       updates.password = password.trim();
       updates.passwordHash = await bcrypt.hash(password.trim(), 10);
     }
-    if (role && ['admin', 'manager', 'reader'].includes(role)) updates.role = role;
+    if (role && ['admin', 'manager', 'sales', 'field_sales', 'staff', 'reader'].includes(role.toLowerCase())) {
+      updates.role = role.toLowerCase();
+    }
     if (department) updates.department = department.trim();
     if (status && ['active', 'inactive'].includes(status)) updates.status = status;
 

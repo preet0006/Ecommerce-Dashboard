@@ -476,6 +476,39 @@ export const api = {
 
   getAuthMe: () => request('/auth/me'),
 
+  // ── Multi-User & Role-Based Tasks API ──────────────────────────────────────
+  getTasks: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') qs.set(k, v);
+    });
+    const query = qs.toString();
+    return request(`/tasks${query ? `?${query}` : ''}`);
+  },
+
+  getTaskSummary: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') qs.set(k, v);
+    });
+    const query = qs.toString();
+    return request(`/tasks/summary${query ? `?${query}` : ''}`);
+  },
+
+  getTask: (id) => request(`/tasks/${id}`),
+
+  createTask: (data) =>
+    request('/tasks', { method: 'POST', body: JSON.stringify(data) }),
+
+  updateTask: (id, data) =>
+    request(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  toggleTask: (id) =>
+    request(`/tasks/${id}/toggle`, { method: 'PATCH' }),
+
+  deleteTask: (id) =>
+    request(`/tasks/${id}`, { method: 'DELETE' }),
+
   // ── Products API ──────────────────────────────────────────────────────────
   getProducts: () => request('/products'),
   getProductBySku: (sku) => request(`/products/${encodeURIComponent(sku)}`),

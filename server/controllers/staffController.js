@@ -1,5 +1,6 @@
+import bcrypt from 'bcryptjs';
 import { db } from '../db/index.js';
-import { staffMembers, tasks } from '../db/schema.js';
+import { staffMembers, systemUsers } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 
 const INITIAL_STAFF_SEED = [
@@ -62,36 +63,102 @@ export async function getStaffMembers(_req, res) {
 }
 
 /**
- * POST /api/staff — Create & Register new team member / helper
+ * POST /api/staff
+ * Manager creates a new team member and generates login credentials in systemUsers
  */
 export async function createStaffMember(req, res) {
-  const { name, role, phone, reportingTime, scheduledReportingTime } = req.body;
-
-  if (!name || !name.trim()) {
-    return res.status(400).json({ message: 'Member full name is required' });
-  }
-
-  const memberRole = role ? role.trim() : 'Warehouse Helper';
-  const time = reportingTime || scheduledReportingTime || '09:00 AM';
-  const generatedId = `m_${Date.now()}`;
-
   try {
-    const [inserted] = await db
-      .insert(staffMembers)
-      .values({
-        memberId: generatedId,
-        name: name.trim(),
-        role: memberRole,
-        phone: phone ? phone.trim() : '',
+    const { name, role, email, password, phone, reportingTime, scheduledReportingTime, department } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Name is required' });
+    }
+
+    const cleanName = name.trim();
+    const cleanEmail = (email || `${cleanName.toLowerCase().replace(/\s+/g, '.')}@greenfibre.com`).trim().toLowerCase();
+    const rawPassword = password || 'GreenFibre@2026';
+    const passwordHash = await bcrypt.hash(rawPassword, 10);
+    const normalizedRole = role?.toLowerCase().includes('sales') ? 'sales' : (role?.toLowerCase() || 'sales');
+    const assignedDept = department || (normalizedRole === 'sales' ? 'Field Sales' : 'Shift Operations');
+    const avatarInitials = cleanName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'ST';
+    const time = reportingTime || scheduledReportingTime || '09:00 AM';
+    const generatedMemberId = `m_${Date.now()}`;
+
+    // 1. Check if user already exists or create new systemUser for app login
+    const [existingUser] = await db.select().from(systemUsers).where(eq(systemUsers.email, cleanEmail));
+    let userId;
+
+    if (existingUser) {
+      userId = existingUser.id;
+      await db.update(systemUsers).set({
+        name: cleanName,
+        role: normalizedRole,
+        password: rawPassword,
+        passwordHash,
+        phone: phone || existingUser.phone || '',
+        department: assignedDept,
+        avatar: avatarInitials,
+        status: 'active',
+        updatedAt: new Date(),
+      }).where(eq(systemUsers.id, userId));
+    } else {
+      const [inserted] = await db.insert(systemUsers).values({
+        name: cleanName,
+        email: cleanEmail,
+        password: rawPassword,
+        passwordHash,
+        role: normalizedRole,
+        department: assignedDept,
+        phone: phone || '',
+        avatar: avatarInitials,
+        status: 'active',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning();
+      userId = inserted?.id || Date.now();
+    }
+
+    // 2. Also record in staff_members table for attendance and roster
+    try {
+      await db.insert(staffMembers).values({
+        memberId: generatedMemberId,
+        name: cleanName,
+        role: normalizedRole === 'sales' ? 'Field Sales' : (role || 'Field Sales'),
+        phone: phone || '',
         reportingTime: time,
         status: 'on_time',
-      })
-      .returning();
+      });
+    } catch (e) {
+      console.warn('[staffController.createStaffMember] staff_members insert non-fatal warning:', e.message);
+    }
 
-    return res.status(201).json(formatMember(inserted));
-  } catch (err) {
-    console.error('[staffController.createStaffMember]', err);
-    return res.status(500).json({ message: 'Failed to create team member', error: err.message });
+    // 3. Format response for frontend
+    const newStaffMember = {
+      id: String(userId),
+      userId: String(userId),
+      memberId: generatedMemberId,
+      name: cleanName,
+      email: cleanEmail,
+      role: normalizedRole === 'sales' ? 'Field Sales' : (role || 'Staff Member'),
+      avatar: avatarInitials,
+      phone: phone || '',
+      reportingTime: time,
+      checkIn: null,
+      checkOut: null,
+      status: 'present',
+      date: new Date().toISOString().split('T')[0],
+      department: assignedDept,
+    };
+
+    return res.status(201).json({
+      success: true,
+      message: 'Staff member and login credentials created successfully',
+      staff: newStaffMember,
+      user: { id: userId, email: cleanEmail, role: normalizedRole, name: cleanName },
+    });
+  } catch (error) {
+    console.error('[staffController.createStaffMember]', error);
+    return res.status(500).json({ message: 'Failed to create staff member', error: error.message });
   }
 }
 
