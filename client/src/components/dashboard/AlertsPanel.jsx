@@ -27,7 +27,7 @@ export default function AlertsPanel() {
               </div>
             </li>
           ))
-          : data?.map((alert, i) => {
+          : (data || []).map((alert, i) => {
             const toneClass =
               alert.tone === 'danger' ? 'bg-red-soft text-red'
                 : alert.tone === 'warn' ? 'bg-amber-soft text-amber'

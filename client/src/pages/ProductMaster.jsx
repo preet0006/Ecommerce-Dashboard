@@ -9,7 +9,7 @@ import ProductForm from '../components/productmaster/ProductForm';
 import Modal from '../components/productmaster/Modal';
 
 // API & Shared helpers
-import { getProducts, createProduct, updateProduct, bulkImportProducts } from '../lib/api';
+import { getProducts, createProduct, updateProduct, deleteProduct, bulkImportProducts } from '../lib/api';
 import { addProductToCatalog } from '../lib/productsCatalog';
 import {
   INITIAL_PRODUCTS,
@@ -30,7 +30,38 @@ export default function ProductMaster() {
     } catch { return null; }
   });
 
-  const [products, setProducts]         = useState(INITIAL_PRODUCTS);
+  // Load initial cached state from localStorage if available, else INITIAL_PRODUCTS
+  const [products, setProducts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pm_products');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const initialMap = new Map(INITIAL_PRODUCTS.map(p => [p.id, p]));
+          return parsed.map(p => {
+            const base = initialMap.get(p.id || p.sku);
+            if (base && (Number(p.sellingPrice || 0) === 0 || Number(p.landedCost || 0) === 0 || !p.category || p.category.toLowerCase().startsWith('uncategori'))) {
+              return {
+                ...base,
+                ...p,
+                category: (p.category && !p.category.toLowerCase().startsWith('uncategori')) ? p.category : base.category,
+                mrp: Number(p.mrp || 0) > 0 ? Number(p.mrp) : base.mrp,
+                sellingPrice: Number(p.sellingPrice || 0) > 0 ? Number(p.sellingPrice) : base.sellingPrice,
+                landedCost: Number(p.landedCost || 0) > 0 ? Number(p.landedCost) : base.landedCost,
+                stock: Number(p.stock || 0) > 0 ? Number(p.stock) : base.stock,
+                contributionPct: base.contributionPct,
+              };
+            }
+            return p;
+          });
+        }
+      }
+      return INITIAL_PRODUCTS;
+    } catch (err) {
+      return INITIAL_PRODUCTS;
+    }
+  });
+
   const [loading, setLoading]           = useState(true);
   const [modalOpen, setModalOpen]       = useState(false);
   const [modalProduct, setModalProduct] = useState(null);
@@ -54,17 +85,23 @@ export default function ProductMaster() {
     loadProducts();
   }, [loadProducts]);
 
-  // Persist whenever tab or selected product changes
+  // Persist state to localStorage whenever it changes
   useEffect(() => {
     try { localStorage.setItem('pm_activeTab', activeTab); } catch {}
   }, [activeTab]);
 
   useEffect(() => {
     try {
-      if (selectedProduct) localStorage.setItem('pm_selectedProductId', selectedProduct.id);
+      if (selectedProduct) localStorage.setItem('pm_selectedProductId', selectedProduct.id || selectedProduct.sku);
       else localStorage.removeItem('pm_selectedProductId');
     } catch {}
   }, [selectedProduct]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pm_products', JSON.stringify(products));
+    } catch {}
+  }, [products]);
 
   const openAddModal  = useCallback(() => { setModalProduct(null); setModalOpen(true); }, []);
   const openEditModal = useCallback((p) => { setModalProduct(p);   setModalOpen(true); }, []);
@@ -72,6 +109,25 @@ export default function ProductMaster() {
 
   // Pencil icon → open edit modal
   const goEdit = (product) => openEditModal(product);
+
+  // Delete product action (API call + State update)
+  const handleDelete = useCallback(async (productId) => {
+    const target = products.find(p => p.id === productId || p.sku === productId);
+    const label = target ? `"${target.name}" (${target.id || target.sku})` : 'this product';
+    if (!window.confirm(`Are you sure you want to delete ${label}?`)) return;
+
+    try {
+      const skuCode = target?.sku || target?.id || productId;
+      await deleteProduct(skuCode);
+      setProducts(prev => prev.filter(p => p.id !== productId && p.sku !== productId));
+      setSelectedProduct(prev => (prev?.id === productId || prev?.sku === productId ? null : prev));
+    } catch (err) {
+      console.error('Failed to delete product on server:', err.message);
+      // Local fallback delete
+      setProducts(prev => prev.filter(p => p.id !== productId && p.sku !== productId));
+      setSelectedProduct(prev => (prev?.id === productId || prev?.sku === productId ? null : prev));
+    }
+  }, [products, deleteProduct]);
 
   // Row click → go to Cost Breakdown for that product
   const goViewCost = useCallback((product) => {
@@ -104,7 +160,7 @@ export default function ProductMaster() {
     if (mode === 'add') {
       try {
         const created = await createProduct(payload);
-        setProducts(prev => [created, ...prev.filter(p => p.id !== created.id)]);
+        setProducts(prev => [created, ...prev.filter(p => p.id !== created.id && p.sku !== created.sku)]);
         addProductToCatalog(created);
       } catch (err) {
         console.error('Failed to create product on server:', err.message);
@@ -182,6 +238,7 @@ export default function ProductMaster() {
         <ProductList
           products={products}
           onSelect={goEdit}
+          onDelete={handleDelete}
           onAddNew={openAddModal}
           onViewCost={goViewCost}
           onDownload={() => downloadProductsCSV(products)}
@@ -201,4 +258,4 @@ export default function ProductMaster() {
       </Modal>
     </div>
   );
-}
+}

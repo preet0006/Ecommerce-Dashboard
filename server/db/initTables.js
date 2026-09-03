@@ -313,7 +313,38 @@ export async function initTables() {
       );
     `);
 
-    console.log('✅ All PostgreSQL tables (Users, Settings, POs, AI, Products, Tasks, Staff, Attendance, Notes, Locations) ready in Neon!');
+    // 12. Push Recommendations table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS push_recommendations (
+        id SERIAL PRIMARY KEY,
+        sku VARCHAR(100) NOT NULL,
+        product_name VARCHAR(200) NOT NULL,
+        category VARCHAR(100),
+        recommended_channel VARCHAR(20) NOT NULL,
+        sell_through_pct NUMERIC(5, 2),
+        days_cover NUMERIC(6, 1),
+        margin_pct NUMERIC(5, 2),
+        channel_order_counts JSONB,
+        reason_tags JSONB NOT NULL,
+        suggested_action TEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'new' NOT NULL,
+        approval_token VARCHAR(64),
+        token_expires_at TIMESTAMP,
+        decided_at TIMESTAMP,
+        decided_via VARCHAR(20),
+        decided_by VARCHAR(150),
+        emailed_at TIMESTAMP,
+        email_preview_url TEXT,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+    `);
+    await db.execute(`ALTER TABLE push_recommendations ADD COLUMN IF NOT EXISTS approval_token VARCHAR(64);`);
+    await db.execute(`ALTER TABLE push_recommendations ADD COLUMN IF NOT EXISTS token_expires_at TIMESTAMP;`);
+    await db.execute(`ALTER TABLE push_recommendations ADD COLUMN IF NOT EXISTS decided_at TIMESTAMP;`);
+    await db.execute(`ALTER TABLE push_recommendations ADD COLUMN IF NOT EXISTS decided_via VARCHAR(20);`);
+    await db.execute(`ALTER TABLE push_recommendations ADD COLUMN IF NOT EXISTS decided_by VARCHAR(150);`);
+
+    console.log('✅ All PostgreSQL tables (Users, Settings, POs, AI, Products, Tasks, Staff, Attendance, Notes, Locations, Push Recommendations) ready in Neon!');
   } catch (err) {
     console.error('❌ Table init error:', err.message);
   }

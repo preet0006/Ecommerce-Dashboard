@@ -17,7 +17,9 @@ import staffRoutes from './routes/staff.js';
 import salesRoutes from './routes/sales.js';
 import inventoryRoutes from './routes/inventory.js';
 import notesRoutes from './routes/notes.js';
+import pushRecommendationRoutes from './routes/pushRecommendations.js';
 import { initLocationSocket } from './sockets/locationSocket.js';
+import { runMockChannelSync } from './jobs/mockChannelSync.js';
 import { initTables } from './db/initTables.js';
 import { startVendorFollowUpCron } from './jobs/vendorFollowupCron.js';
 
@@ -72,6 +74,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/team', staffRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/notes', notesRoutes);
+app.use('/api/push-recommendations', pushRecommendationRoutes);
 
 // ── 404 fallback ────────────────────────────────────────────────────
 app.use((_req, res) => {

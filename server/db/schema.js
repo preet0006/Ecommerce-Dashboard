@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, integer, numeric, timestamp, unique, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, integer, numeric, timestamp, unique, boolean, jsonb } from 'drizzle-orm/pg-core';
 
 // ─── Staff & Team Members Table ──────────────────────────────────────────────
 export const staffMembers = pgTable('staff_members', {
@@ -322,5 +322,33 @@ export const notes = pgTable('notes', {
   
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ─── Sales Push Recommendations ──────────────────────────────────────────────
+export const pushRecommendations = pgTable('push_recommendations', {
+  id:                 serial('id').primaryKey(),
+  sku:                varchar('sku', { length: 100 }).notNull(),
+  productName:        varchar('product_name', { length: 200 }).notNull(),
+  category:           varchar('category', { length: 100 }),
+  recommendedChannel: varchar('recommended_channel', { length: 20 }).notNull(), // 'amazon' | 'flipkart' | 'website'
+
+  sellThroughPct:     numeric('sell_through_pct', { precision: 5, scale: 2 }),
+  daysCover:          numeric('days_cover', { precision: 6, scale: 1 }),
+  marginPct:          numeric('margin_pct', { precision: 5, scale: 2 }),
+  channelOrderCounts: jsonb('channel_order_counts'), // { amazon: 5, flipkart: 1, website: 3 } snapshot at scan time
+
+  reasonTags:         jsonb('reason_tags').notNull(),   // string[] — the exact bullet reasons shown to the admin
+  suggestedAction:    text('suggested_action').notNull(),
+
+  status:             varchar('status', { length: 20 }).default('new').notNull(), // 'new' | 'emailed' | 'actioned' | 'dismissed'
+  approvalToken:      varchar('approval_token', { length: 64 }),
+  tokenExpiresAt:     timestamp('token_expires_at'),
+  decidedAt:          timestamp('decided_at'),
+  decidedVia:         varchar('decided_via', { length: 20 }),                       // 'email' | 'dashboard'
+  decidedBy:          varchar('decided_by', { length: 150 }),
+  emailedAt:          timestamp('emailed_at'),
+  emailPreviewUrl:    text('email_preview_url'),
+
+  createdAt:          timestamp('created_at').defaultNow().notNull(),
 });
 

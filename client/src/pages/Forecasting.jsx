@@ -1,5 +1,38 @@
-import React, { useState, useMemo } from 'react';
-import { TrendingUp, CalendarRange, FlaskConical, ChevronRight, IndianRupee } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  TrendingUp,
+  CalendarRange,
+  FlaskConical,
+  ChevronRight,
+  IndianRupee,
+  Megaphone,
+  Mail,
+  Clock,
+  ExternalLink,
+  Send,
+} from 'lucide-react';
+import { computePushCandidates } from '../lib/pushRecommendationEngine';
+import { UNIFIED_PRODUCTS } from '../lib/productsData';
+import {
+  generatePushRecommendations,
+  resendPushRecommendationsEmail,
+  getPushRecommendations,
+  updatePushRecommendationStatus,
+} from '../lib/api';
+
+function formatDispatchTime(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
 
 /* ============================================================
    MOCK DATA — replace with API calls to your Forecast Engine
@@ -24,6 +57,7 @@ const TABS = [
   { id: 'demand', label: 'Demand Forecast', icon: TrendingUp },
   { id: 'seasonality', label: 'Seasonality View', icon: CalendarRange },
   { id: 'scenario', label: 'Scenario Planner', icon: FlaskConical },
+  { id: 'push', label: 'Sales Push', icon: Megaphone },
 ];
 
 /* ---------------- Demand Forecast ---------------- */
@@ -182,6 +216,221 @@ function ScenarioPlanner() {
   );
 }
 
+/* ---------------- Sales Push Recommendations ---------------- */
+function SalesPushRecommendations() {
+  const [items, setItems] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [scanMessage, setScanMessage] = useState(null);
+
+  async function loadItems() {
+    setLoading(true);
+    try {
+      const data = await getPushRecommendations();
+      const list = Array.isArray(data) ? data : data?.items || [];
+      setItems(list);
+    } catch (err) {
+      console.error('[SalesPushRecommendations] load error:', err);
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadItems();
+  }, []);
+
+  async function handleScan() {
+    setScanning(true);
+    setScanMessage(null);
+    try {
+      const candidates = computePushCandidates(UNIFIED_PRODUCTS);
+      if (candidates.length === 0) {
+        setScanMessage({ type: 'info', text: 'No products currently meet the low-sales/high-cost thresholds.' });
+        return;
+      }
+      const res = await generatePushRecommendations(candidates);
+      if (res?.message) {
+        setScanMessage({
+          type: res.newlyEmailedCount > 0 ? 'success' : 'info',
+          text: res.message,
+        });
+      }
+      await loadItems();
+    } catch (err) {
+      console.error('[SalesPushRecommendations] scan error:', err);
+      alert('Failed to generate recommendations: ' + (err.message || err));
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  async function handleResendEmail() {
+    setResending(true);
+    setScanMessage(null);
+    try {
+      const res = await resendPushRecommendationsEmail();
+      if (res?.message) {
+        setScanMessage({ type: 'success', text: res.message });
+      }
+      await loadItems();
+    } catch (err) {
+      console.error('[SalesPushRecommendations] resend error:', err);
+      setScanMessage({ type: 'info', text: 'Failed to send fresh email: ' + (err.message || err) });
+    } finally {
+      setResending(false);
+    }
+  }
+
+  async function handleStatus(id, status) {
+    try {
+      await updatePushRecommendationStatus(id, status);
+      await loadItems();
+    } catch (err) {
+      console.error('[SalesPushRecommendations] update status error:', err);
+    }
+  }
+
+  return (
+    <div className="animate-enter">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <p className="text-sm text-ink-muted">
+          Flags low sell-through / high cost-of-sale SKUs and recommends a channel to push with 1-click admin email approvals.
+        </p>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            className="btn-secondary text-xs flex items-center gap-1.5"
+            onClick={handleResendEmail}
+            disabled={resending || scanning || items.length === 0}
+            title="Dispatch a fresh approval email template to admin for current recommendations"
+          >
+            <Send size={13} />
+            {resending ? 'Sending…' : 'Send Fresh Email to Admin'}
+          </button>
+          <button className="btn-primary shrink-0" onClick={handleScan} disabled={scanning || resending}>
+            {scanning ? 'Scanning…' : 'Scan for Recommendations'}
+          </button>
+        </div>
+      </div>
+
+      {scanMessage && (
+        <div
+          className={`p-3.5 mb-4 rounded-xl text-xs flex items-center justify-between border ${
+            scanMessage.type === 'success'
+              ? 'bg-primary-soft text-primary-strong border-primary/20'
+              : 'bg-surface-raised text-ink-muted border-border'
+          }`}
+        >
+          <span>{scanMessage.text}</span>
+          <button
+            onClick={() => setScanMessage(null)}
+            className="text-ink-muted hover:text-ink font-bold ml-2"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-ink-muted">Loading…</p>
+      ) : items.length === 0 ? (
+        <div className="card p-6 text-sm text-ink-muted">No recommendations yet — run a scan to generate some.</div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {items.map((r) => (
+            <div key={r.id} className="card p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="font-mono text-xs text-ink-muted">{r.sku}</div>
+                  <div className="font-semibold text-base text-ink">{r.productName}</div>
+                  <span className="badge-ok mt-1 inline-block">Push on {r.recommendedChannel}</span>
+                  <ul className="mt-2 text-xs text-ink-muted list-disc pl-4 space-y-0.5">
+                    {(Array.isArray(r.reasonTags)
+                      ? r.reasonTags
+                      : typeof r.reasonTags === 'string'
+                      ? JSON.parse(r.reasonTags || '[]')
+                      : []
+                    ).map((t, i) => (
+                      <li key={i}>{t}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs italic text-ink-muted mt-2">{r.suggestedAction}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2.5 shrink-0">
+                  <div className="flex flex-col items-end gap-1">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        r.status === 'actioned'
+                          ? 'badge-ok'
+                          : r.status === 'dismissed'
+                          ? 'badge-danger'
+                          : 'badge-warn'
+                      }`}
+                    >
+                      {r.status === 'emailed' && <Mail size={12} className="text-amber-700 dark:text-amber-300" />}
+                      <span className="capitalize">{r.status}</span>
+                    </span>
+
+                    {/* When the mail was directed / sent */}
+                    {r.emailedAt ? (
+                      <div
+                        className="text-[11px] text-ink-muted flex items-center gap-1.5 bg-surface-raised px-2 py-0.5 rounded-md border border-border shadow-2xs mt-0.5"
+                        title={`Quotation mail was directed on ${formatDispatchTime(r.emailedAt)}`}
+                      >
+                        <Clock size={11} className="text-primary shrink-0" />
+                        <span>Directed: <strong className="text-ink font-mono font-medium">{formatDispatchTime(r.emailedAt)}</strong></span>
+                      </div>
+                    ) : r.createdAt ? (
+                      <div className="text-[10px] text-ink-muted flex items-center gap-1 mt-0.5">
+                        <Clock size={10} className="shrink-0" />
+                        <span>Logged: {formatDispatchTime(r.createdAt)}</span>
+                      </div>
+                    ) : null}
+
+                    {/* Decision Audit Trail */}
+                    {r.decidedAt && (
+                      <div className="text-[10px] text-ink-muted font-mono mt-0.5">
+                        {r.status === 'actioned' ? '✓ Approved' : '✕ Dismissed'} via {r.decidedVia || 'system'} ({formatDispatchTime(r.decidedAt)})
+                      </div>
+                    )}
+
+                    {/* Email preview link if available */}
+                    {r.emailPreviewUrl && (
+                      <a
+                        href={r.emailPreviewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] font-medium text-primary hover:text-primary-strong hover:underline flex items-center gap-1 mt-0.5 transition-colors"
+                        title="Open sent email in a new browser tab"
+                      >
+                        <ExternalLink size={11} />
+                        <span>View Sent Email</span>
+                      </a>
+                    )}
+                  </div>
+
+                  {r.status !== 'actioned' && r.status !== 'dismissed' && (
+                    <div className="flex gap-2">
+                      <button className="btn-secondary text-xs" onClick={() => handleStatus(r.id, 'dismissed')}>
+                        Dismiss
+                      </button>
+                      <button className="btn-primary text-xs" onClick={() => handleStatus(r.id, 'actioned')}>
+                        Mark Actioned
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- Page ---------------- */
 export default function Forecasting() {
   const [activeTab, setActiveTab] = useState('demand');
@@ -215,6 +464,7 @@ export default function Forecasting() {
       {activeTab === 'demand' && <DemandForecast rows={MOCK_FORECAST} />}
       {activeTab === 'seasonality' && <SeasonalityView data={MOCK_SEASONALITY} />}
       {activeTab === 'scenario' && <ScenarioPlanner />}
+      {activeTab === 'push' && <SalesPushRecommendations />}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, Plus, Pencil, Trash2, FileSpreadsheet } from 'lucide-react';
 import { marginBadge } from './utils';
 
-export default function ProductList({ products, onSelect, onAddNew, onViewCost, onDownload }) {
+export default function ProductList({ products, onSelect, onDelete, onAddNew, onViewCost, onDownload }) {
   const [query, setQuery] = useState('');
   const [hoveredId, setHoveredId] = useState(null);
   const filtered = products.filter(p =>
@@ -84,9 +84,12 @@ export default function ProductList({ products, onSelect, onAddNew, onViewCost, 
                     </button>
                     <button
                       className="btn-ghost !px-2"
-                      title="Delete"
+                      title="Delete product"
                       style={{ color: 'var(--color-danger, #e53e3e)' }}
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete?.(p.id);
+                      }}
                     >
                       <Trash2 size={15} />
                     </button>
