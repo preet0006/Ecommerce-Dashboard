@@ -1,100 +1,31 @@
 import { db } from '../db/index.js';
-import { systemUsers, salesOrders, salesVisits } from '../db/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { systemUsers, salesOrders, salesVisits, tasks, salesLocations } from '../db/schema.js';
+import { eq, desc, and, sql, ilike } from 'drizzle-orm';
+import { getSocketIO } from '../sockets/locationSocket.js';
 
-// In-memory live telemetry store
+// Live telemetry store (in-memory fast cache)
 const liveLocations = new Map();
 
-// In-memory sales orders fallback store
-const inMemoryOrders = [
-  {
-    id: 'SO-2026-001',
-    orderNumber: 'SO-2026-001',
-    clientName: 'Metro Garments & Retail',
-    clientPhone: '+91 98221 34567',
-    salesRepId: '235',
-    salesRepName: 'Amit Sharma',
-    items: [
-      { sku: 'GF-CAS-001', name: 'Casserole Set A', quantity: 30, rate: 899 },
-      { sku: 'GF-BWL-014', name: 'Bowl Set B', quantity: 25, rate: 549 },
-    ],
-    totalAmount: 42500,
-    status: 'confirmed',
-    deliveryAddress: 'C.G. Road, Navrangpura, Ahmedabad',
-    paymentMethod: 'Cash on Delivery',
-    notes: 'Urgent festival delivery requested',
-    orderDate: new Date().toISOString().split('T')[0],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'SO-2026-002',
-    orderNumber: 'SO-2026-002',
-    clientName: 'Shreeji Departmental Store',
-    clientPhone: '+91 98332 45678',
-    salesRepId: '285',
-    salesRepName: 'Kavita Rao',
-    items: [
-      { sku: 'GF-PET-002', name: 'Pet Bowl Steel', quantity: 50, rate: 249 },
-    ],
-    totalAmount: 18750,
-    status: 'delivered',
-    deliveryAddress: 'Law Garden, Ellisbridge, Ahmedabad',
-    paymentMethod: 'UPI / Online Transfer',
-    notes: 'Delivered and signed by Store Manager',
-    orderDate: new Date().toISOString().split('T')[0],
-    createdAt: new Date().toISOString(),
-  },
-];
-
-// In-memory client visits fallback store
-const inMemoryVisits = [
-  {
-    id: 'VST-2026-001',
-    visitId: 'VST-2026-001',
-    clientName: 'Metro Garments & Retail',
-    clientAddress: 'Shop 4, Commercial Complex, C.G. Road, Ahmedabad',
-    clientPhone: '+91 98221 34567',
-    salesRepId: '235',
-    salesRepName: 'Amit Sharma',
-    scheduledDate: new Date().toISOString().split('T')[0],
-    scheduledTime: '11:00 AM',
-    status: 'scheduled',
-    purpose: 'Festive Stock Replenishment & Order Collection',
-    outcome: null,
-    notes: 'Meet purchasing manager Mr. Rajesh',
-    latitude: 23.0258,
-    longitude: 72.5729,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'VST-2026-002',
-    visitId: 'VST-2026-002',
-    clientName: 'Laxmi Supermarket Chain',
-    clientAddress: 'Sindhu Bhavan Road, Bodakdev, Ahmedabad',
-    clientPhone: '+91 98443 56789',
-    salesRepId: '285',
-    salesRepName: 'Kavita Rao',
-    scheduledDate: new Date().toISOString().split('T')[0],
-    scheduledTime: '02:30 PM',
-    status: 'in_progress',
-    purpose: 'New Stainless Steel Casserole Showcase',
-    outcome: null,
-    notes: 'Demonstrate new GF-CAS-001 samples',
-    latitude: 23.0338,
-    longitude: 72.5850,
-    createdAt: new Date().toISOString(),
-  },
-];
+/**
+ * Update in-memory telemetry store from socket or REST
+ */
+export function recordLocationUpdate(locationData) {
+  const keyId = String(locationData.userId || locationData.id);
+  liveLocations.set(keyId, locationData);
+  if (locationData.name) {
+    liveLocations.set(`name_${locationData.name.toLowerCase().trim()}`, locationData);
+  }
+}
 
 /**
  * POST /api/sales/location
- * Sales rep broadcasts live GPS coordinates
+ * Sales rep broadcasts live GPS coordinates from mobile app (REST fallback)
  */
 export async function updateLocation(req, res) {
   try {
-    const { userId, name, role, latitude, longitude, address, isGpsEnabled } = req.body;
+    const { userId, name, role, latitude, longitude, address, isGpsEnabled, distanceMovedMeters } = req.body;
     const effectiveId = String(userId || req.user?.id || 'rep_1');
-    const effectiveName = name || req.user?.name || 'Sales Representative';
+    const effectiveName = (name || req.user?.name || 'Sales Representative').trim();
 
     const numLat = parseFloat(latitude) || 0;
     const numLng = parseFloat(longitude) || 0;
@@ -103,7 +34,7 @@ export async function updateLocation(req, res) {
 
     let finalAddress = address;
     if (!finalAddress || finalAddress === 'Location not tracked') {
-      finalAddress = (numLat && numLng) ? `${numLat.toFixed(4)}° N, ${numLng.toFixed(4)}° E` : 'Navrangpura, Ahmedabad';
+      finalAddress = (numLat && numLng) ? `${numLat.toFixed(4)}° N, ${numLng.toFixed(4)}° E` : 'Live GPS Location';
     }
 
     const locationData = {
@@ -115,26 +46,69 @@ export async function updateLocation(req, res) {
       longitude: numLng,
       currentAddress: finalAddress,
       isGpsEnabled: Boolean(isGpsEnabled ?? true),
-      status: isGpsEnabled ? 'active' : 'idle',
+      status: isGpsEnabled && numLat !== 0 ? 'active' : 'idle',
       lastUpdate: timeFormatted,
       updatedAt: now.toISOString(),
     };
 
-    // Store by ID and by lowercased Name so lookups never miss
-    liveLocations.set(effectiveId, locationData);
-    if (effectiveName) {
-      liveLocations.set(`name_${effectiveName.toLowerCase().trim()}`, locationData);
+    // Store in-memory
+    recordLocationUpdate(locationData);
+
+    // Persist to Neon PostgreSQL sales_locations table
+    try {
+      await db.execute(sql`
+        INSERT INTO sales_locations (user_id, name, role, latitude, longitude, address, is_gps_enabled, last_update)
+        VALUES (
+          ${effectiveId}, 
+          ${effectiveName}, 
+          ${role || 'Field Sales Rep'}, 
+          ${numLat}, 
+          ${numLng}, 
+          ${finalAddress}, 
+          ${Boolean(isGpsEnabled ?? true)}, 
+          NOW()
+        )
+        ON CONFLICT (user_id) 
+        DO UPDATE SET 
+          name = EXCLUDED.name,
+          role = EXCLUDED.role,
+          latitude = EXCLUDED.latitude,
+          longitude = EXCLUDED.longitude,
+          address = EXCLUDED.address,
+          is_gps_enabled = EXCLUDED.is_gps_enabled,
+          last_update = NOW();
+      `);
+    } catch (dbErr) {
+      console.warn('[salesLocationController.updateLocation] DB insert non-fatal warning:', dbErr.message);
     }
 
-    res.json({ success: true, location: locationData });
+    // Broadcast via Socket.IO to managers room if socket server is active
+    const io = getSocketIO();
+    if (io) {
+      io.to('managers').emit('fleet:location_updated', {
+        userId: effectiveId,
+        name: effectiveName,
+        role: role || 'Field Sales Rep',
+        latitude: numLat,
+        longitude: numLng,
+        address: finalAddress,
+        isGpsEnabled: Boolean(isGpsEnabled ?? true),
+        distanceMovedMeters: Number(distanceMovedMeters) || 0,
+        lastUpdate: timeFormatted,
+        updatedAt: now.toISOString(),
+      });
+    }
+
+    return res.json({ success: true, location: locationData });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update location', error: error.message });
+    console.error('[salesLocationController.updateLocation]', error);
+    return res.status(500).json({ message: 'Failed to update location', error: error.message });
   }
 }
 
 /**
  * GET /api/sales/locations
- * Admin & Manager fetch live sales rep fleet positions (Clean Deduplication)
+ * Admin & Manager fetch live sales rep fleet positions & real KPI stats
  */
 export async function getLiveLocations(req, res) {
   try {
@@ -145,6 +119,22 @@ export async function getLiveLocations(req, res) {
       registeredSalesUsers = [];
     }
 
+    // Fetch real orders to compute today's sales per rep
+    let allOrders = [];
+    try {
+      allOrders = await db.select().from(salesOrders);
+    } catch {
+      allOrders = [];
+    }
+
+    // Fetch real tasks to compute tasks count per rep
+    let allTasks = [];
+    try {
+      allTasks = await db.select().from(tasks);
+    } catch {
+      allTasks = [];
+    }
+
     const result = [];
     const processedNames = new Set();
     const processedIds = new Set();
@@ -153,7 +143,7 @@ export async function getLiveLocations(req, res) {
       const cleanName = u.name?.trim() || 'Sales Rep';
       const lowerName = cleanName.toLowerCase();
 
-      // Find any live location matching ID or Name
+      // Find any live GPS broadcast matching ID or Name
       const live =
         liveLocations.get(String(u.id)) ||
         liveLocations.get(`name_${lowerName}`) ||
@@ -163,11 +153,18 @@ export async function getLiveLocations(req, res) {
 
       const hasLiveCoords = live && Number(live.latitude) !== 0 && Number(live.longitude) !== 0;
 
-      // Default fallback coordinates if rep hasn't pinged yet (Ahmedabad commercial hub)
-      const lat = hasLiveCoords ? Number(live.latitude) : 23.0225;
-      const lng = hasLiveCoords ? Number(live.longitude) : 72.5714;
-      const addr = live?.currentAddress || (hasLiveCoords ? `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E` : 'Ahmedabad Central Market');
-      const isLiveActive = live ? Boolean(live.isGpsEnabled) : (u.status === 'active');
+      const lat = hasLiveCoords ? Number(live.latitude) : 0;
+      const lng = hasLiveCoords ? Number(live.longitude) : 0;
+      const addr = live?.currentAddress || (hasLiveCoords ? `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E` : 'Location not tracked');
+      const isLiveActive = live ? Boolean(live.isGpsEnabled) : false;
+
+      // Calculate real metrics from DB
+      const repOrders = allOrders.filter((o) => String(o.salesRepId) === String(u.id) || (o.salesRepName && o.salesRepName.toLowerCase() === lowerName));
+      const repSalesTotal = repOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+
+      const repTasks = allTasks.filter((t) => (t.assignedTo && t.assignedTo.toLowerCase().includes(lowerName)) || t.assignedToId === u.id);
+      const completedTasksCount = repTasks.filter((t) => t.completed).length;
+      const pendingTasksCount = repTasks.filter((t) => !t.completed).length;
 
       result.push({
         id: String(u.id),
@@ -178,12 +175,12 @@ export async function getLiveLocations(req, res) {
         latitude: lat,
         longitude: lng,
         currentAddress: addr,
-        todaySales: 42000,
-        lastUpdate: live?.lastUpdate || 'Just now',
-        phone: u.phone || '+91 98765 43210',
+        todaySales: repSalesTotal,
+        lastUpdate: live?.lastUpdate || 'Not checked in',
+        phone: u.phone || '',
         isGpsEnabled: isLiveActive,
-        completedTasksCount: 3,
-        pendingTasksCount: 1,
+        completedTasksCount,
+        pendingTasksCount,
       });
 
       processedNames.add(lowerName);
@@ -192,7 +189,7 @@ export async function getLiveLocations(req, res) {
       if (live?.userId) processedIds.add(String(live.userId));
     }
 
-    // Add any unique broadcasting reps in memory not already in DB
+    // Add any unique broadcasting reps in memory
     for (const [key, live] of liveLocations.entries()) {
       if (key.startsWith('name_')) continue;
 
@@ -204,15 +201,15 @@ export async function getLiveLocations(req, res) {
           avatar: live.name?.slice(0, 2).toUpperCase() || 'SR',
           role: live.role || 'Field Sales Rep',
           status: live.status || 'active',
-          latitude: Number(live.latitude || 23.0225),
-          longitude: Number(live.longitude || 72.5714),
-          currentAddress: live.currentAddress || 'Ahmedabad Commercial Hub',
-          todaySales: 35000,
+          latitude: Number(live.latitude || 0),
+          longitude: Number(live.longitude || 0),
+          currentAddress: live.currentAddress || 'Location not tracked',
+          todaySales: 0,
           lastUpdate: live.lastUpdate || 'Just now',
-          phone: '+91 98765 43210',
+          phone: '',
           isGpsEnabled: Boolean(live.isGpsEnabled ?? true),
-          completedTasksCount: 2,
-          pendingTasksCount: 1,
+          completedTasksCount: 0,
+          pendingTasksCount: 0,
         });
 
         processedNames.add(lowerName);
@@ -229,38 +226,36 @@ export async function getLiveLocations(req, res) {
 
 /**
  * GET /api/sales/orders
- * Fetch field sales orders
+ * Fetch real field sales orders from DB
  */
 export async function getSalesOrders(req, res) {
   try {
     const { salesRepId, status, search } = req.query;
 
-    let orders = [...inMemoryOrders];
+    let orders = [];
 
     try {
-      if (salesOrders) {
-        const rows = await db.select().from(salesOrders).orderBy(desc(salesOrders.createdAt));
-        if (rows && rows.length > 0) {
-          orders = rows.map((r) => ({
-            id: r.orderNumber || String(r.id),
-            orderNumber: r.orderNumber || `SO-${r.id}`,
-            clientName: r.clientName,
-            clientPhone: r.clientPhone || '',
-            salesRepId: r.salesRepId || '',
-            salesRepName: r.salesRepName || '',
-            items: typeof r.items === 'string' ? JSON.parse(r.items || '[]') : (r.items || []),
-            totalAmount: Number(r.totalAmount || 0),
-            status: r.status || 'confirmed',
-            deliveryAddress: r.deliveryAddress || '',
-            paymentMethod: r.paymentMethod || 'Cash on Delivery',
-            notes: r.notes || '',
-            orderDate: r.orderDate || new Date(r.createdAt).toISOString().split('T')[0],
-            createdAt: r.createdAt,
-          }));
-        }
+      const rows = await db.select().from(salesOrders).orderBy(desc(salesOrders.createdAt));
+      if (rows && rows.length > 0) {
+        orders = rows.map((r) => ({
+          id: r.orderNumber || String(r.id),
+          orderNumber: r.orderNumber || `SO-${r.id}`,
+          clientName: r.clientName,
+          clientPhone: r.clientPhone || '',
+          salesRepId: r.salesRepId || '',
+          salesRepName: r.salesRepName || '',
+          items: typeof r.items === 'string' ? JSON.parse(r.items || '[]') : (r.items || []),
+          totalAmount: Number(r.totalAmount || 0),
+          status: r.status || 'confirmed',
+          deliveryAddress: r.deliveryAddress || '',
+          paymentMethod: r.paymentMethod || 'Cash on Delivery',
+          notes: r.notes || '',
+          orderDate: r.orderDate || (r.createdAt ? new Date(r.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+          createdAt: r.createdAt,
+        }));
       }
-    } catch {
-      // Fall back to inMemoryOrders
+    } catch (e) {
+      console.error('[salesLocationController.getSalesOrders] DB query error:', e.message);
     }
 
     if (salesRepId) {
@@ -287,7 +282,7 @@ export async function getSalesOrders(req, res) {
 
 /**
  * POST /api/sales/orders
- * Create new field sales order
+ * Create new field sales order in DB
  */
 export async function createSalesOrder(req, res) {
   try {
@@ -304,7 +299,7 @@ export async function createSalesOrder(req, res) {
       orderNumber,
     } = req.body;
 
-    if (!clientName) {
+    if (!clientName || !clientName.trim()) {
       return res.status(400).json({ message: 'Client name is required' });
     }
 
@@ -312,51 +307,46 @@ export async function createSalesOrder(req, res) {
     const parsedItems = Array.isArray(items) ? items : (typeof items === 'string' ? JSON.parse(items) : []);
     const calculatedTotal = Number(totalAmount || parsedItems.reduce((s, i) => s + (Number(i.quantity || 1) * Number(i.rate || 0)), 0));
 
-    const newOrder = {
-      id: generatedNumber,
+    const repId = String(salesRepId || req.user?.id || '');
+    const repName = salesRepName || req.user?.name || 'Sales Representative';
+    const today = new Date().toISOString().split('T')[0];
+
+    const [inserted] = await db.insert(salesOrders).values({
       orderNumber: generatedNumber,
       clientName: clientName.trim(),
-      clientPhone: clientPhone || '',
-      salesRepId: String(salesRepId || req.user?.id || '235'),
-      salesRepName: salesRepName || req.user?.name || 'Sales Representative',
-      items: parsedItems,
-      totalAmount: calculatedTotal,
+      clientPhone: clientPhone ? clientPhone.trim() : '',
+      salesRepId: repId,
+      salesRepName: repName,
+      items: JSON.stringify(parsedItems),
+      totalAmount: String(calculatedTotal),
       status: 'confirmed',
-      deliveryAddress: deliveryAddress || '',
+      deliveryAddress: deliveryAddress ? deliveryAddress.trim() : '',
       paymentMethod: paymentMethod || 'Cash on Delivery',
-      notes: notes || '',
-      orderDate: new Date().toISOString().split('T')[0],
-      createdAt: new Date().toISOString(),
+      notes: notes ? notes.trim() : '',
+      orderDate: today,
+    }).returning();
+
+    const formattedOrder = {
+      id: inserted.orderNumber || String(inserted.id),
+      orderNumber: inserted.orderNumber,
+      clientName: inserted.clientName,
+      clientPhone: inserted.clientPhone,
+      salesRepId: inserted.salesRepId,
+      salesRepName: inserted.salesRepName,
+      items: parsedItems,
+      totalAmount: Number(inserted.totalAmount),
+      status: inserted.status,
+      deliveryAddress: inserted.deliveryAddress,
+      paymentMethod: inserted.paymentMethod,
+      notes: inserted.notes,
+      orderDate: inserted.orderDate,
+      createdAt: inserted.createdAt,
     };
-
-    // Try saving to DB if table exists
-    try {
-      if (salesOrders) {
-        await db.insert(salesOrders).values({
-          orderNumber: generatedNumber,
-          clientName: newOrder.clientName,
-          clientPhone: newOrder.clientPhone,
-          salesRepId: newOrder.salesRepId,
-          salesRepName: newOrder.salesRepName,
-          items: JSON.stringify(newOrder.items),
-          totalAmount: String(newOrder.totalAmount),
-          status: newOrder.status,
-          deliveryAddress: newOrder.deliveryAddress,
-          paymentMethod: newOrder.paymentMethod,
-          notes: newOrder.notes,
-          orderDate: newOrder.orderDate,
-        });
-      }
-    } catch (e) {
-      console.warn('[salesLocationController.createSalesOrder] DB insert warning:', e.message);
-    }
-
-    inMemoryOrders.unshift(newOrder);
 
     return res.status(201).json({
       success: true,
       message: 'Sales order created successfully',
-      order: newOrder,
+      order: formattedOrder,
     });
   } catch (error) {
     console.error('[salesLocationController.createSalesOrder]', error);
@@ -366,41 +356,39 @@ export async function createSalesOrder(req, res) {
 
 /**
  * GET /api/sales/visits
- * Fetch scheduled & logged client visits
+ * Fetch real scheduled & logged client visits from DB
  */
 export async function getSalesVisits(req, res) {
   try {
     const { salesRepId, status, date } = req.query;
 
-    let visits = [...inMemoryVisits];
+    let visits = [];
 
     try {
-      if (salesVisits) {
-        const rows = await db.select().from(salesVisits).orderBy(desc(salesVisits.createdAt));
-        if (rows && rows.length > 0) {
-          visits = rows.map((r) => ({
-            id: r.visitId || String(r.id),
-            visitId: r.visitId || `VST-${r.id}`,
-            clientName: r.clientName,
-            clientAddress: r.clientAddress || '',
-            clientPhone: r.clientPhone || '',
-            salesRepId: r.salesRepId || '',
-            salesRepName: r.salesRepName || '',
-            scheduledDate: r.scheduledDate || '',
-            scheduledTime: r.scheduledTime || '09:00 AM',
-            status: r.status || 'scheduled',
-            purpose: r.purpose || 'Client Visit',
-            outcome: r.outcome || null,
-            notes: r.notes || '',
-            latitude: Number(r.latitude || 0),
-            longitude: Number(r.longitude || 0),
-            completedAt: r.completedAt,
-            createdAt: r.createdAt,
-          }));
-        }
+      const rows = await db.select().from(salesVisits).orderBy(desc(salesVisits.createdAt));
+      if (rows && rows.length > 0) {
+        visits = rows.map((r) => ({
+          id: r.visitId || String(r.id),
+          visitId: r.visitId || `VST-${r.id}`,
+          clientName: r.clientName,
+          clientAddress: r.clientAddress || '',
+          clientPhone: r.clientPhone || '',
+          salesRepId: r.salesRepId || '',
+          salesRepName: r.salesRepName || '',
+          scheduledDate: r.scheduledDate || '',
+          scheduledTime: r.scheduledTime || '09:00 AM',
+          status: r.status || 'scheduled',
+          purpose: r.purpose || 'Client Visit',
+          outcome: r.outcome || null,
+          notes: r.notes || '',
+          latitude: Number(r.latitude || 0),
+          longitude: Number(r.longitude || 0),
+          completedAt: r.completedAt,
+          createdAt: r.createdAt,
+        }));
       }
-    } catch {
-      // Fall back to inMemoryVisits
+    } catch (e) {
+      console.error('[salesLocationController.getSalesVisits] DB query error:', e.message);
     }
 
     if (salesRepId) {
@@ -422,7 +410,7 @@ export async function getSalesVisits(req, res) {
 
 /**
  * POST /api/sales/visits
- * Schedule a new client visit
+ * Schedule a new client visit in DB
  */
 export async function createSalesVisit(req, res) {
   try {
@@ -440,62 +428,60 @@ export async function createSalesVisit(req, res) {
       longitude,
     } = req.body;
 
-    if (!clientName) {
+    if (!clientName || !clientName.trim()) {
       return res.status(400).json({ message: 'Client name is required' });
     }
 
     const generatedId = `VST-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const repId = String(salesRepId || req.user?.id || '');
+    const repName = salesRepName || req.user?.name || 'Sales Representative';
+    const visitDate = scheduledDate || new Date().toISOString().split('T')[0];
+    const visitTime = scheduledTime || '10:00 AM';
 
-    const newVisit = {
-      id: generatedId,
+    const [inserted] = await db.insert(salesVisits).values({
       visitId: generatedId,
       clientName: clientName.trim(),
-      clientAddress: clientAddress || 'Ahmedabad Commercial Hub',
-      clientPhone: clientPhone || '',
-      salesRepId: String(salesRepId || req.user?.id || '235'),
-      salesRepName: salesRepName || req.user?.name || 'Sales Representative',
-      scheduledDate: scheduledDate || new Date().toISOString().split('T')[0],
-      scheduledTime: scheduledTime || '10:00 AM',
+      clientAddress: clientAddress ? clientAddress.trim() : '',
+      clientPhone: clientPhone ? clientPhone.trim() : '',
+      salesRepId: repId,
+      salesRepName: repName,
+      scheduledDate: visitDate,
+      scheduledTime: visitTime,
       status: 'scheduled',
-      purpose: purpose || 'Product Demo & Order Taking',
-      outcome: null,
-      notes: notes || '',
-      latitude: Number(latitude || 23.0225),
-      longitude: Number(longitude || 72.5714),
-      createdAt: new Date().toISOString(),
+      purpose: purpose ? purpose.trim() : 'Product Demo & Order Taking',
+      notes: notes ? notes.trim() : '',
+      latitude: latitude ? String(latitude) : '0',
+      longitude: longitude ? String(longitude) : '0',
+    }).returning();
+
+    const formattedVisit = {
+      id: inserted.visitId || String(inserted.id),
+      visitId: inserted.visitId,
+      clientName: inserted.clientName,
+      clientAddress: inserted.clientAddress,
+      clientPhone: inserted.clientPhone,
+      salesRepId: inserted.salesRepId,
+      salesRepName: inserted.salesRepName,
+      scheduledDate: inserted.scheduledDate,
+      scheduledTime: inserted.scheduledTime,
+      status: inserted.status,
+      purpose: inserted.purpose,
+      outcome: inserted.outcome,
+      notes: inserted.notes,
+      latitude: Number(inserted.latitude || 0),
+      longitude: Number(inserted.longitude || 0),
+      completedAt: inserted.completedAt,
+      createdAt: inserted.createdAt,
     };
-
-    try {
-      if (salesVisits) {
-        await db.insert(salesVisits).values({
-          visitId: generatedId,
-          clientName: newVisit.clientName,
-          clientAddress: newVisit.clientAddress,
-          clientPhone: newVisit.clientPhone,
-          salesRepId: newVisit.salesRepId,
-          salesRepName: newVisit.salesRepName,
-          scheduledDate: newVisit.scheduledDate,
-          scheduledTime: newVisit.scheduledTime,
-          status: newVisit.status,
-          purpose: newVisit.purpose,
-          notes: newVisit.notes,
-          latitude: String(newVisit.latitude),
-          longitude: String(newVisit.longitude),
-        });
-      }
-    } catch (e) {
-      console.warn('[salesLocationController.createSalesVisit] DB insert warning:', e.message);
-    }
-
-    inMemoryVisits.unshift(newVisit);
 
     return res.status(201).json({
       success: true,
       message: 'Sales visit scheduled successfully',
-      visit: newVisit,
+      visit: formattedVisit,
     });
   } catch (error) {
     console.error('[salesLocationController.createSalesVisit]', error);
     return res.status(500).json({ message: 'Failed to schedule visit', error: error.message });
   }
 }
+

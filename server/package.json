@@ -19,7 +19,8 @@
     "express": "^4.19.2",
     "groq-sdk": "^1.6.0",
     "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^9.0.5"
+    "nodemailer": "^9.0.5",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "drizzle-kit": "^0.28.1"

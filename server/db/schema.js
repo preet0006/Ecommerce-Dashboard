@@ -8,9 +8,29 @@ export const staffMembers = pgTable('staff_members', {
   role: text('role').notNull(), // 'Field Sales' | 'Warehouse Helper' | 'Logistics / Driver'
   phone: text('phone'),
   reportingTime: text('reporting_time').default('09:00 AM'),
-  status: text('status').default('on_time'), // 'on_time' | 'late' | 'absent'
+  status: text('status').default('on_time'), // 'on_time' | 'late' | 'absent' | 'present'
+  checkIn: text('check_in'),
+  checkOut: text('check_out'),
+  lastCheckedInAt: timestamp('last_checked_in_at'),
+  lastCheckedOutAt: timestamp('last_checked_out_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ─── Attendance History & Daily Logs (10-Hour Lock Rule) ─────────────────────
+export const attendanceLogs = pgTable('attendance_logs', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  name: text('name').notNull(),
+  role: text('role').default('sales'),
+  checkInTime: text('check_in_time'),
+  checkOutTime: text('check_out_time'),
+  status: varchar('status', { length: 30 }).default('present'), // 'present' | 'late' | 'on_time'
+  checkInTimestamp: timestamp('check_in_timestamp').defaultNow(),
+  checkOutTimestamp: timestamp('check_out_timestamp'),
+  date: varchar('date', { length: 30 }),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Tasks & Reminders Table (Multi-User & Role-Based RBAC) ──────────────────
@@ -38,6 +58,8 @@ export const tasks = pgTable('tasks', {
   assignedToRole: varchar('assigned_to_role', { length: 50 }).default('all'), // 'admin' | 'manager' | 'sales' | 'all' | specific role
   department: varchar('department', { length: 100 }).default('General'), // 'Executive' | 'Sales' | 'Operations' | 'Procurement' | 'Warehouse' | 'General'
   category: varchar('category', { length: 100 }).default('General'), // 'Sales Follow-up' | 'Inventory Audit' | 'PO Approval' | 'Dispatch' | 'General'
+  notes: text('notes'),
+  outcome: text('outcome'),
 
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -262,5 +284,43 @@ export const salesVisits = pgTable('sales_visits', {
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── Sales Locations (Live GPS Telemetry & Fleet Tracking) ───────────────────
+export const salesLocations = pgTable('sales_locations', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id', { length: 100 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  role: varchar('role', { length: 100 }).default('Field Sales Rep'),
+  latitude: numeric('latitude', { precision: 10, scale: 6 }).notNull(),
+  longitude: numeric('longitude', { precision: 10, scale: 6 }).notNull(),
+  address: text('address').default('Location not tracked'),
+  isGpsEnabled: boolean('is_gps_enabled').default(true),
+  lastUpdate: timestamp('last_update').defaultNow(),
+});
+
+// ─── Notes & Reminders Table (Role-Based Access Control) ──────────────────────
+export const notes = pgTable('notes', {
+  id: serial('id').primaryKey(),
+  noteId: text('note_id').notNull().unique(),
+  title: text('title').notNull(),
+  content: text('content').default(''),
+  category: varchar('category', { length: 100 }).default('General'), // 'General', 'Client', 'Order', 'Meeting', 'Personal'
+  color: varchar('color', { length: 30 }).default('#F3F4F6'),
+  priority: varchar('priority', { length: 30 }).default('medium'), // 'low' | 'medium' | 'high'
+  isPinned: boolean('is_pinned').default(false),
+  
+  // Reminder details
+  reminder: boolean('reminder').default(false),
+  reminderTime: text('reminder_time'),
+  reminderDate: text('reminder_date'),
+  
+  // Author Attribution & RBAC Scoping
+  authorId: integer('author_id'),
+  authorName: text('author_name').notNull().default('Staff Member'),
+  authorRole: varchar('author_role', { length: 50 }).notNull().default('sales'), // 'admin' | 'manager' | 'sales'
+  
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 

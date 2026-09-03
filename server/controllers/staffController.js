@@ -1,48 +1,74 @@
 import bcrypt from 'bcryptjs';
 import { db } from '../db/index.js';
-import { staffMembers, systemUsers } from '../db/schema.js';
-import { eq, desc } from 'drizzle-orm';
-
-const INITIAL_STAFF_SEED = [
-  { memberId: 'm_101', name: 'Ramesh Kumar', role: 'Field Sales', phone: '+91 98123 45678', reportingTime: '09:00 AM', status: 'on_time' },
-  { memberId: 'm_102', name: 'Sunil Sharma', role: 'Warehouse Helper', phone: '+91 98234 56789', reportingTime: '09:00 AM', status: 'on_time' },
-  { memberId: 'm_103', name: 'Vikas Verma', role: 'Logistics / Driver', phone: '+91 98345 67890', reportingTime: '09:30 AM', status: 'late' },
-  { memberId: 'm_104', name: 'Anil Yadav', role: 'Field Sales', phone: '+91 98456 78901', reportingTime: '09:00 AM', status: 'on_time' },
-  { memberId: 'm_105', name: 'Deepak Gupta', role: 'Warehouse Helper', phone: '+91 98567 89012', reportingTime: '09:00 AM', status: 'on_time' },
-  { memberId: 'm_106', name: 'Manoj Singh', role: 'Logistics / Driver', phone: '+91 98678 90123', reportingTime: '09:00 AM', status: 'absent' },
-];
+import { staffMembers, systemUsers, attendanceLogs } from '../db/schema.js';
+import { eq, desc, or } from 'drizzle-orm';
 
 function formatMember(m) {
+  const isPresent = m.status === 'on_time' || m.status === 'late' || m.status === 'present';
+  const nameParts = (m.name || 'Staff Member').trim().split(/\s+/);
+  const avatarInitials = nameParts.length >= 2 
+    ? (nameParts[0][0] + nameParts[1][0]).toUpperCase()
+    : nameParts[0].slice(0, 2).toUpperCase();
+
   return {
     id: m.memberId || `m_${m.id}`,
     memberId: m.memberId || `m_${m.id}`,
     name: m.name,
-    role: m.role,
+    role: m.role || 'Field Sales',
     phone: m.phone || '',
     reportingTime: m.reportingTime || '09:00 AM',
     scheduledReportingTime: m.reportingTime || '09:00 AM',
-    status: m.status || 'on_time',
+    status: isPresent ? (m.status === 'late' ? 'late' : 'present') : 'absent',
+    checkIn: m.checkIn || (isPresent ? (m.reportingTime || '09:00 AM') : null),
+    checkOut: m.checkOut || null,
+    lastCheckedInAt: m.lastCheckedInAt || null,
+    lastCheckedOutAt: m.lastCheckedOutAt || null,
+    avatar: avatarInitials,
+    department: m.role?.toLowerCase().includes('sales') ? 'Field Sales' : 'Shift Operations',
     createdAt: m.createdAt,
     updatedAt: m.updatedAt,
   };
 }
 
 /**
- * GET /api/staff — Fetch all staff/team members
+ * GET /api/staff — Fetch all real staff/team members & attendance summary
  */
 export async function getStaffMembers(_req, res) {
   try {
-    let rows = await db.select().from(staffMembers).orderBy(desc(staffMembers.createdAt));
+    const rows = await db.select().from(staffMembers).orderBy(desc(staffMembers.createdAt));
+    const members = rows.map(formatMember);
 
-    // Auto-seed initial team members if table is empty
-    if (rows.length === 0) {
-      console.log('[staffController] Seeding initial staff members...');
-      await db.insert(staffMembers).values(INITIAL_STAFF_SEED).onConflictDoNothing();
-      rows = await db.select().from(staffMembers).orderBy(desc(staffMembers.createdAt));
+    // Also include any registered sales systemUsers not already in members
+    try {
+      const salesUsers = await db.select().from(systemUsers).where(eq(systemUsers.role, 'sales'));
+      const existingNames = new Set(members.map((m) => m.name.toLowerCase().trim()));
+      
+      for (const u of salesUsers) {
+        if (!existingNames.has(u.name.toLowerCase().trim())) {
+          members.push({
+            id: `u_${u.id}`,
+            memberId: `u_${u.id}`,
+            userId: String(u.id),
+            name: u.name,
+            role: 'Field Sales',
+            phone: u.phone || '',
+            reportingTime: '09:00 AM',
+            scheduledReportingTime: '09:00 AM',
+            status: u.status === 'active' ? 'present' : 'absent',
+            checkIn: u.status === 'active' ? '09:00 AM' : null,
+            avatar: u.avatar || u.name.slice(0, 2).toUpperCase() || 'SR',
+            department: u.department || 'Field Sales',
+            createdAt: u.createdAt,
+            updatedAt: u.updatedAt,
+          });
+          existingNames.add(u.name.toLowerCase().trim());
+        }
+      }
+    } catch {
+      // Non-fatal if systemUsers query fails
     }
 
-    const members = rows.map(formatMember);
-    const onTime = members.filter((m) => m.status === 'on_time').length;
+    const onTime = members.filter((m) => m.status === 'present' || m.status === 'on_time').length;
     const late = members.filter((m) => m.status === 'late').length;
     const absent = members.filter((m) => m.status === 'absent').length;
 
@@ -207,5 +233,256 @@ export async function deleteStaffMember(req, res) {
   } catch (err) {
     console.error('[staffController.deleteStaffMember]', err);
     return res.status(500).json({ message: 'Failed to delete member', error: err.message });
+  }
+}
+
+const TEN_HOURS_MS = 10 * 60 * 60 * 1000;
+
+/**
+ * POST /api/staff/checkin or POST /api/staff/attendance
+ * Staff / Sales rep marks daily attendance.
+ * RULE: Once marked, attendance is LOCKED for 10 hours and cannot be modified/re-marked.
+ */
+export async function markAttendance(req, res) {
+  try {
+    const rawUserId = req.body.userId || req.user?.id || req.body.memberId;
+    const rawName = req.body.name || req.user?.name || '';
+    const rawRole = req.body.role || req.user?.role || 'Field Sales';
+    const notes = req.body.notes || '';
+
+    if (!rawName && !rawUserId) {
+      return res.status(400).json({ message: 'User identification (userId or name) is required' });
+    }
+
+    const cleanName = rawName.trim();
+    const cleanUserId = String(rawUserId || cleanName);
+    const now = new Date();
+    const todayDate = now.toISOString().split('T')[0];
+    const timeFormatted = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // 1. Check existing staff member record
+    let [member] = await db
+      .select()
+      .from(staffMembers)
+      .where(or(eq(staffMembers.name, cleanName), eq(staffMembers.memberId, cleanUserId)));
+
+    // 2. Check 10-hour lock rule
+    const lastCheckIn = member?.lastCheckedInAt;
+    if (lastCheckIn) {
+      const elapsedMs = now.getTime() - new Date(lastCheckIn).getTime();
+      if (elapsedMs < TEN_HOURS_MS) {
+        const remainingMs = TEN_HOURS_MS - elapsedMs;
+        const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
+        const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+        const nextAllowed = new Date(new Date(lastCheckIn).getTime() + TEN_HOURS_MS);
+
+        return res.status(400).json({
+          success: false,
+          locked: true,
+          canCheckIn: false,
+          message: `Attendance is already marked! It is locked for 10 hours and cannot be re-marked (unlocks in ${remainingHours}h ${remainingMinutes}m).`,
+          checkIn: member.checkIn || timeFormatted,
+          status: member.status || 'present',
+          lastCheckedInAt: member.lastCheckedInAt,
+          nextAllowedCheckInAt: nextAllowed.toISOString(),
+          remainingTime: `${remainingHours}h ${remainingMinutes}m`,
+        });
+      }
+    }
+
+    // 3. Determine On-Time vs Late based on reporting time
+    const reportingTime = member?.reportingTime || req.body.reportingTime || '09:00 AM';
+    let attendanceStatus = 'present';
+
+    try {
+      const currentHour = now.getHours();
+      const currentMin = now.getMinutes();
+      let targetHour = 9;
+      let targetMin = 15; // 15-minute grace period
+      const match12 = reportingTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (match12) {
+        let h = parseInt(match12[1], 10);
+        const m = parseInt(match12[2], 10);
+        const p = match12[3].toUpperCase();
+        if (p === 'PM' && h < 12) h += 12;
+        if (p === 'AM' && h === 12) h = 0;
+        targetHour = h;
+        targetMin = m + 15;
+        if (targetMin >= 60) {
+          targetHour += Math.floor(targetMin / 60);
+          targetMin %= 60;
+        }
+      }
+      if (currentHour > targetHour || (currentHour === targetHour && currentMin > targetMin)) {
+        attendanceStatus = 'late';
+      }
+    } catch {
+      // Keep 'present' default
+    }
+
+    // 4. Update or Insert in staff_members table
+    if (member) {
+      await db
+        .update(staffMembers)
+        .set({
+          status: attendanceStatus,
+          checkIn: timeFormatted,
+          checkOut: null,
+          lastCheckedInAt: now,
+          updatedAt: now,
+        })
+        .where(eq(staffMembers.id, member.id));
+    } else {
+      const generatedMemberId = `m_${Date.now()}`;
+      const [inserted] = await db
+        .insert(staffMembers)
+        .values({
+          memberId: generatedMemberId,
+          name: cleanName,
+          role: rawRole,
+          reportingTime,
+          status: attendanceStatus,
+          checkIn: timeFormatted,
+          lastCheckedInAt: now,
+        })
+        .returning();
+      member = inserted;
+    }
+
+    // 5. Log into attendance_logs table
+    try {
+      await db.insert(attendanceLogs).values({
+        userId: cleanUserId,
+        name: cleanName,
+        role: rawRole,
+        checkInTime: timeFormatted,
+        status: attendanceStatus,
+        date: todayDate,
+        notes: notes ? notes.trim() : 'Checked in via mobile app',
+      });
+    } catch (e) {
+      console.warn('[staffController.markAttendance] Log insert warning:', e.message);
+    }
+
+    const nextAllowedCheckIn = new Date(now.getTime() + TEN_HOURS_MS);
+
+    return res.json({
+      success: true,
+      message: `✓ Attendance marked as ${attendanceStatus.toUpperCase()} at ${timeFormatted}. Locked for 10 hours.`,
+      canCheckIn: false,
+      locked: true,
+      attendance: {
+        userId: cleanUserId,
+        name: cleanName,
+        role: member?.role || rawRole,
+        status: attendanceStatus,
+        checkIn: timeFormatted,
+        checkInTimestamp: now.toISOString(),
+        date: todayDate,
+        nextAllowedCheckInAt: nextAllowedCheckIn.toISOString(),
+      },
+    });
+  } catch (err) {
+    console.error('[staffController.markAttendance]', err);
+    return res.status(500).json({ message: 'Failed to mark attendance', error: err.message });
+  }
+}
+
+/**
+ * GET /api/staff/attendance/status
+ * Check if user is currently checked in or locked under the 10-hour rule
+ */
+export async function getAttendanceStatus(req, res) {
+  try {
+    const rawUserId = req.query.userId || req.user?.id || req.query.memberId;
+    const rawName = req.query.name || req.user?.name || '';
+
+    if (!rawName && !rawUserId) {
+      return res.status(400).json({ message: 'User identification (userId or name) is required' });
+    }
+
+    const cleanName = rawName.trim();
+    const cleanUserId = String(rawUserId || cleanName);
+    const now = new Date();
+
+    const [member] = await db
+      .select()
+      .from(staffMembers)
+      .where(or(eq(staffMembers.name, cleanName), eq(staffMembers.memberId, cleanUserId)));
+
+    const lastCheckIn = member?.lastCheckedInAt;
+    if (lastCheckIn) {
+      const elapsedMs = now.getTime() - new Date(lastCheckIn).getTime();
+      if (elapsedMs < TEN_HOURS_MS) {
+        const remainingMs = TEN_HOURS_MS - elapsedMs;
+        const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
+        const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+        const nextAllowed = new Date(new Date(lastCheckIn).getTime() + TEN_HOURS_MS);
+
+        return res.json({
+          isCheckedIn: true,
+          canCheckIn: false,
+          locked: true,
+          status: member.status || 'present',
+          checkIn: member.checkIn || '09:00 AM',
+          lastCheckedInAt: lastCheckIn,
+          nextAllowedCheckInAt: nextAllowed.toISOString(),
+          remainingLockTime: `${remainingHours}h ${remainingMinutes}m`,
+          message: `Attendance is locked for today. Next check-in allowed in ${remainingHours}h ${remainingMinutes}m.`,
+        });
+      }
+    }
+
+    return res.json({
+      isCheckedIn: false,
+      canCheckIn: true,
+      locked: false,
+      message: 'Ready to mark attendance for today.',
+    });
+  } catch (err) {
+    console.error('[staffController.getAttendanceStatus]', err);
+    return res.status(500).json({ message: 'Failed to fetch attendance status', error: err.message });
+  }
+}
+
+/**
+ * POST /api/staff/checkout
+ * Mark check-out time for end of shift
+ */
+export async function checkoutAttendance(req, res) {
+  try {
+    const rawUserId = req.body.userId || req.user?.id || req.body.memberId;
+    const rawName = req.body.name || req.user?.name || '';
+
+    const cleanName = rawName.trim();
+    const cleanUserId = String(rawUserId || cleanName);
+    const now = new Date();
+    const timeFormatted = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const [member] = await db
+      .select()
+      .from(staffMembers)
+      .where(or(eq(staffMembers.name, cleanName), eq(staffMembers.memberId, cleanUserId)));
+
+    if (member) {
+      await db
+        .update(staffMembers)
+        .set({
+          checkOut: timeFormatted,
+          lastCheckedOutAt: now,
+          updatedAt: now,
+        })
+        .where(eq(staffMembers.id, member.id));
+    }
+
+    return res.json({
+      success: true,
+      message: `Checked out successfully at ${timeFormatted}.`,
+      checkOut: timeFormatted,
+      lastCheckedOutAt: now.toISOString(),
+    });
+  } catch (err) {
+    console.error('[staffController.checkoutAttendance]', err);
+    return res.status(500).json({ message: 'Failed to checkout', error: err.message });
   }
 }

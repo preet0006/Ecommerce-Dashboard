@@ -8,19 +8,19 @@ const router = express.Router();
 // ── GET /api/dashboard/kpis ──────────────────────────────────────────────────
 router.get('/kpis', async (_req, res) => {
   try {
-    let totalSalesToday = 184500;
-    let grossMargin = 27.4;
-    let contribution = 61200;
-    let inventoryValue = 2840000;
-    let cashForNextPo = 950000;
-    let projected30d = 4200000;
+    let totalSalesToday = 0;
+    let grossMargin = 0;
+    let contribution = 0;
+    let inventoryValue = 0;
+    let cashForNextPo = 0;
+    let projected30d = 0;
 
     if (db) {
       const salesResult = await db
         .select({ sum: sql`COALESCE(SUM(CAST(${channelOrders.price} AS NUMERIC) * ${channelOrders.quantity}), 0)` })
         .from(channelOrders)
         .catch(() => []);
-      if (salesResult[0]?.sum > 0) {
+      if (salesResult[0]?.sum) {
         totalSalesToday = Math.round(Number(salesResult[0].sum));
       }
 
@@ -28,18 +28,18 @@ router.get('/kpis', async (_req, res) => {
         .select({ sum: sql`COALESCE(SUM(CAST(${products.landedCost} AS NUMERIC) * ${products.physical}), 0)` })
         .from(products)
         .catch(() => []);
-      if (invResult[0]?.sum > 0) {
+      if (invResult[0]?.sum) {
         inventoryValue = Math.round(Number(invResult[0].sum));
       }
     }
 
     res.json([
-      { id: 'sales', label: "Today's sales", value: totalSalesToday, format: 'currency', delta: 6.2, tone: 'ok' },
-      { id: 'margin', label: 'Gross margin', value: grossMargin, format: 'percent', delta: -1.8, tone: 'warn' },
-      { id: 'contribution', label: 'Contribution', value: contribution, format: 'currency', delta: 3.1, tone: 'ok' },
+      { id: 'sales', label: "Today's sales", value: totalSalesToday, format: 'currency', delta: 0, tone: 'ok' },
+      { id: 'margin', label: 'Gross margin', value: grossMargin, format: 'percent', delta: 0, tone: 'ok' },
+      { id: 'contribution', label: 'Contribution', value: contribution, format: 'currency', delta: 0, tone: 'ok' },
       { id: 'inventory', label: 'Inventory value', value: inventoryValue, format: 'currency', delta: 0, tone: 'ok' },
-      { id: 'cash', label: 'Cash for next PO', value: cashForNextPo, format: 'currency', delta: 0, tone: 'warn' },
-      { id: 'forecast', label: 'Projected 30-day sales', value: projected30d, format: 'currency', delta: 4.4, tone: 'ok' },
+      { id: 'cash', label: 'Cash for next PO', value: cashForNextPo, format: 'currency', delta: 0, tone: 'ok' },
+      { id: 'forecast', label: 'Projected 30-day sales', value: projected30d, format: 'currency', delta: 0, tone: 'ok' },
     ]);
   } catch (err) {
     console.error('[dashboard/kpis]', err);

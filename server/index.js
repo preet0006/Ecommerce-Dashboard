@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import http from 'http';
+import { Server } from 'socket.io';
 import express from 'express';
 import cors from 'cors';
 import vendorRoutes from './routes/vendors.js';
@@ -14,12 +16,28 @@ import taskRoutes from './routes/tasks.js';
 import staffRoutes from './routes/staff.js';
 import salesRoutes from './routes/sales.js';
 import inventoryRoutes from './routes/inventory.js';
-import { runMockChannelSync } from './jobs/mockChannelSync.js';
+import notesRoutes from './routes/notes.js';
+import { initLocationSocket } from './sockets/locationSocket.js';
 import { initTables } from './db/initTables.js';
 import { startVendorFollowUpCron } from './jobs/vendorFollowupCron.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// ── Create HTTP Server & Initialize Socket.IO ───────────────────────────────
+const httpServer = http.createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    credentials: true,
+  },
+  transports: ['websocket', 'polling'],
+});
+
+// Attach Live Location Fleet Tracking Socket Handlers
+initLocationSocket(io);
 
 // ── Middleware ──────────────────────────────────────────────────────────────
 app.use(
@@ -53,8 +71,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/team', staffRoutes);
 app.use('/api/sales', salesRoutes);
-
-
+app.use('/api/notes', notesRoutes);
 
 // ── 404 fallback ────────────────────────────────────────────────────
 app.use((_req, res) => {
@@ -68,8 +85,8 @@ app.use((err, _req, res, _next) => {
 });
 
 // ── Start ────────────────────────────────────────────────────────────
-app.listen(PORT, async () => {
-  console.log(`✅  GreenFibre API server running on http://localhost:${PORT}`);
+httpServer.listen(PORT, async () => {
+  console.log(`🚀 GreenFibre API server & Socket.IO running on http://localhost:${PORT}`);
   console.log(`   Neon DB: ${process.env.DATABASE_URL ? '🟢 Connected' : '🔴 DATABASE_URL not set!'}`);
 
   // 1. Verify / initialize DB tables
@@ -79,9 +96,4 @@ app.listen(PORT, async () => {
 
   // 2. Start daily 10-day vendor follow-up cron job
   startVendorFollowUpCron();
-
-  // 3. Run fake channel sync on startup (stand-in for real cron/API job)
-  await runMockChannelSync().catch((err) =>
-    console.error('[mockChannelSync] Startup sync failed:', err.message)
-  );
 });

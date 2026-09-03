@@ -202,6 +202,8 @@ export async function initTables() {
         assigned_to_role VARCHAR(50) DEFAULT 'all',
         department VARCHAR(100) DEFAULT 'General',
         category VARCHAR(100) DEFAULT 'General',
+        notes TEXT,
+        outcome TEXT,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
@@ -218,53 +220,12 @@ export async function initTables() {
       `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assigned_to_role VARCHAR(50) DEFAULT 'all';`,
       `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT 'General';`,
       `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'General';`,
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notes TEXT;`,
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS outcome TEXT;`,
     ];
 
     for (const q of taskAlterQueries) {
       await db.execute(q);
-    }
-
-    // Seed default role-differentiated sample tasks if tasks table is empty
-    const existingTasksCount = await db.execute(`SELECT count(*) as count FROM tasks;`);
-    const count = Number(existingTasksCount.rows?.[0]?.count ?? existingTasksCount[0]?.count ?? 0);
-    if (count === 0) {
-      console.log('🌱 Seeding initial multi-role tasks (Admin, Manager, Sales Team)...');
-      await db.execute(`
-        INSERT INTO tasks (
-          task_id, title, description, reminder, reminder_time, due_date, priority, completed, status,
-          created_by, created_by_role, assigned_to, assigned_to_role, department, category
-        )
-        VALUES 
-          (
-            't_admin_101', 
-            'Review Monthly Revenue & Channel Profitability', 
-            'Audit Flipkart, Amazon, and Website margins for Q3 strategy alignment.',
-            true, '10:00 AM', '${new Date(Date.now() + 86400000).toISOString()}', 'high', false, 'pending',
-            'Rahul Joshi (Admin)', 'admin', 'Rahul Joshi', 'admin', 'Executive Management', 'Executive'
-          ),
-          (
-            't_mgr_201', 
-            'Audit Bhiwandi Warehouse Inbound Dispatches', 
-            'Coordinate with logistics helper team to verify 450 units GF-CAS-001 batch.',
-            true, '02:30 PM', '${new Date(Date.now() + 172800000).toISOString()}', 'medium', false, 'in_progress',
-            'Vikram Mehta (Manager)', 'manager', 'Vikram Mehta', 'manager', 'Operations', 'Inventory Audit'
-          ),
-          (
-            't_sales_301', 
-            'Follow up with Retail Distributor regarding Bulk Festive Order', 
-            'Call Metro Garments buyer regarding 300 units cotton denim re-order.',
-            true, '11:15 AM', '${new Date(Date.now() + 43200000).toISOString()}', 'high', false, 'pending',
-            'Amit Sharma (Sales)', 'sales', 'Amit Sharma', 'sales', 'Sales', 'Sales Follow-up'
-          ),
-          (
-            't_sales_302', 
-            'Collect Field Feedback on New Polo Shirts Samples', 
-            'Visit 5 retail store counters in Mumbai and record vendor fitment reviews.',
-            false, '04:00 PM', '${new Date(Date.now() + 259200000).toISOString()}', 'medium', false, 'pending',
-            'Amit Sharma (Sales)', 'sales', 'Field Sales Team', 'sales', 'Sales', 'Field Visits'
-          )
-        ON CONFLICT (task_id) DO NOTHING;
-      `);
     }
 
     // 8. Staff & Team Members table
@@ -277,12 +238,82 @@ export async function initTables() {
         phone TEXT,
         reporting_time TEXT DEFAULT '09:00 AM',
         status TEXT DEFAULT 'on_time',
+        check_in TEXT,
+        check_out TEXT,
+        last_checked_in_at TIMESTAMP,
+        last_checked_out_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
 
-    console.log('✅ All PostgreSQL tables (Users, Settings, POs, AI, Products, Tasks, Staff) ready in Neon!');
+    const staffAlterQueries = [
+      `ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS check_in TEXT;`,
+      `ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS check_out TEXT;`,
+      `ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS last_checked_in_at TIMESTAMP;`,
+      `ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS last_checked_out_at TIMESTAMP;`,
+    ];
+
+    for (const q of staffAlterQueries) {
+      await db.execute(q);
+    }
+
+    // 9. Attendance History Logs table (10-Hour Lock Enforcement)
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS attendance_logs (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(100) NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        role VARCHAR(50) DEFAULT 'sales',
+        check_in_time VARCHAR(50),
+        check_out_time VARCHAR(50),
+        status VARCHAR(30) DEFAULT 'present',
+        check_in_timestamp TIMESTAMP DEFAULT NOW(),
+        check_out_timestamp TIMESTAMP,
+        date VARCHAR(30),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // 10. Notes & Reminders table (Multi-Role Privacy & RBAC Visibility)
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS notes (
+        id SERIAL PRIMARY KEY,
+        note_id TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        content TEXT DEFAULT '',
+        category VARCHAR(100) DEFAULT 'General',
+        color VARCHAR(30) DEFAULT '#F3F4F6',
+        priority VARCHAR(30) DEFAULT 'medium',
+        is_pinned BOOLEAN DEFAULT false,
+        reminder BOOLEAN DEFAULT false,
+        reminder_time TEXT,
+        reminder_date TEXT,
+        author_id INTEGER,
+        author_name TEXT DEFAULT 'Staff Member' NOT NULL,
+        author_role VARCHAR(50) DEFAULT 'sales' NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // 11. Sales Locations table (Live GPS Telemetry & Fleet Tracking)
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS sales_locations (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(100) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        role VARCHAR(100) DEFAULT 'Field Sales Rep',
+        latitude DOUBLE PRECISION NOT NULL,
+        longitude DOUBLE PRECISION NOT NULL,
+        address TEXT DEFAULT 'Location not tracked',
+        is_gps_enabled BOOLEAN DEFAULT TRUE,
+        last_update TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+
+    console.log('✅ All PostgreSQL tables (Users, Settings, POs, AI, Products, Tasks, Staff, Attendance, Notes, Locations) ready in Neon!');
   } catch (err) {
     console.error('❌ Table init error:', err.message);
   }

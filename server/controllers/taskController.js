@@ -1,6 +1,25 @@
 import { db } from '../db/index.js';
-import { tasks } from '../db/schema.js';
+import { tasks, systemUsers, staffMembers } from '../db/schema.js';
 import { eq, or, desc, and, ilike, sql } from 'drizzle-orm';
+
+/**
+ * Helper to normalize role names across frontend and backend variants
+ * (e.g. 'Salesperson', 'sales', 'field_sales', 'Field Sales' -> 'sales')
+ */
+function normalizeRole(role) {
+  if (!role) return 'reader';
+  const r = String(role).toLowerCase().trim();
+  if (['sales', 'salesperson', 'field_sales', 'field sales', 'sales rep', 'sales_rep'].includes(r)) {
+    return 'sales';
+  }
+  if (['admin', 'administrator', 'superadmin'].includes(r)) {
+    return 'admin';
+  }
+  if (['manager', 'operations_manager', 'operations'].includes(r)) {
+    return 'manager';
+  }
+  return r;
+}
 
 /**
  * Format raw database task row into clean response object
@@ -17,18 +36,20 @@ function formatTask(t) {
     completed: Boolean(t.completed),
     completedAt: t.completedAt || null,
     status: t.status || (t.completed ? 'completed' : 'pending'),
+    notes: t.notes || '',
+    outcome: t.outcome || '',
     reminder: t.reminder ?? true,
     reminderTime: t.reminderTime || '',
     
     // Creator Info
     createdBy: t.createdBy || 'Admin',
     createdById: t.createdById || null,
-    createdByRole: (t.createdByRole || 'admin').toLowerCase(),
+    createdByRole: normalizeRole(t.createdByRole || 'admin'),
     
     // Assignee & Target Info
     assignedTo: t.assignedTo || 'You',
     assignedToId: t.assignedToId || null,
-    assignedToRole: (t.assignedToRole || 'all').toLowerCase(),
+    assignedToRole: normalizeRole(t.assignedToRole || 'all'),
     department: t.department || 'General',
     category: t.category || 'General',
 
@@ -43,16 +64,17 @@ function formatTask(t) {
  * RBAC Rules:
  * - Admin: Sees ALL tasks across all users & departments. Can filter by role, assignedTo, status, etc.
  * - Manager: Sees manager tasks, tasks created by them, tasks assigned to them, and team/sales tasks.
- * - Sales / Reader / Staff: Sees tasks assigned to them, created by them, or targetRole = 'sales' / 'all'.
+ * - Sales / Salesperson: Sees tasks assigned directly to them, tasks assigned to 'Field Sales Team' / 'all', or created by them.
  */
 export async function getTasks(req, res) {
   try {
     // 1. Identify active user role from JWT token (req.user) or query parameter override
-    const userRole = (req.user?.role || req.query.role || req.headers['x-user-role'] || 'admin').toLowerCase();
+    const rawRole = req.user?.role || req.query.role || req.headers['x-user-role'] || 'admin';
+    const userRole = normalizeRole(rawRole);
     const userId = req.user?.id || (req.query.userId ? parseInt(req.query.userId, 10) : null);
-    const userName = req.user?.name || req.query.userName || '';
-    const userEmail = req.user?.email || req.query.userEmail || '';
-    const userDept = req.user?.department || req.query.department || '';
+    const userName = (req.user?.name || req.query.userName || '').trim();
+    const userEmail = (req.user?.email || req.query.userEmail || '').trim();
+    const userDept = (req.user?.department || req.query.department || '').trim();
 
     // Additional query filters (search, status, priority, completed, targetRole, assignedTo)
     const {
@@ -72,20 +94,20 @@ export async function getTasks(req, res) {
 
     // 2. Apply Role-based visibility scoping
     if (userRole === 'admin') {
-      // Admin has full 360-degree visibility!
-      // If admin explicitly requested to filter by a specific role:
+      // Admin has full 360-degree visibility across all users and teams
       const filterRole = (targetRole || assignedToRole || req.query.filterRole || '').toLowerCase();
       if (filterRole && filterRole !== 'all') {
+        const normalizedFilter = normalizeRole(filterRole);
         list = list.filter(
           (t) =>
-            t.assignedToRole === filterRole ||
-            t.createdByRole === filterRole ||
-            (filterRole === 'sales' && (t.department.toLowerCase().includes('sales') || t.assignedToRole === 'sales')) ||
-            (filterRole === 'manager' && (t.department.toLowerCase().includes('operations') || t.assignedToRole === 'manager'))
+            t.assignedToRole === normalizedFilter ||
+            t.createdByRole === normalizedFilter ||
+            (normalizedFilter === 'sales' && (t.department.toLowerCase().includes('sales') || t.assignedToRole === 'sales')) ||
+            (normalizedFilter === 'manager' && (t.department.toLowerCase().includes('operations') || t.assignedToRole === 'manager'))
         );
       }
     } else if (userRole === 'manager') {
-      // Manager visibility: Manager's own tasks + Sales & Team tasks + Department tasks
+      // Manager visibility: Manager's own tasks + Sales team tasks + Staff tasks
       list = list.filter((t) => {
         const isCreatedByManager =
           t.createdByRole === 'manager' ||
@@ -98,8 +120,8 @@ export async function getTasks(req, res) {
           (userName && t.assignedTo.toLowerCase().includes(userName.toLowerCase()));
 
         const isTeamOrSalesTask =
-          ['sales', 'field sales', 'staff', 'warehouse', 'logistics', 'all'].includes(t.assignedToRole) ||
-          ['sales', 'field sales', 'staff'].includes(t.createdByRole) ||
+          ['sales', 'staff', 'warehouse', 'logistics', 'all'].includes(t.assignedToRole) ||
+          ['sales', 'staff'].includes(t.createdByRole) ||
           t.department.toLowerCase().includes('sales') ||
           t.department.toLowerCase().includes('operations');
 
@@ -107,25 +129,37 @@ export async function getTasks(req, res) {
 
         return isCreatedByManager || isAssignedToManager || isTeamOrSalesTask || isDeptMatch || t.assignedToRole === 'all';
       });
-    } else if (userRole === 'sales' || userRole === 'field_sales') {
-      // Sales Team visibility: Sales tasks + Directly assigned + Created by them
+    } else if (userRole === 'sales') {
+      // Sales Team / Salesperson visibility:
+      // A salesperson should only see:
+      // 1. Tasks directly assigned to them (by ID, Name, or Email)
+      // 2. Tasks assigned to the whole team ("Field Sales Team", "Sales Team", "all")
+      // 3. Tasks created by them
+      // NOTE: Specific tasks assigned to OTHER sales reps will not be shown to this rep!
       list = list.filter((t) => {
-        const isAssignedToSales =
-          t.assignedToRole === 'sales' ||
-          t.assignedToRole === 'field_sales' ||
-          t.assignedToRole === 'all' ||
+        const targetAssignee = (t.assignedTo || '').toLowerCase().trim();
+        const currentLowerName = userName.toLowerCase().trim();
+
+        const isDirectToMe =
           (userId && t.assignedToId === userId) ||
-          (userName && t.assignedTo.toLowerCase().includes(userName.toLowerCase())) ||
-          (userEmail && t.assignedTo.toLowerCase().includes(userEmail.toLowerCase()));
+          (currentLowerName && (targetAssignee.includes(currentLowerName) || currentLowerName.includes(targetAssignee))) ||
+          (userEmail && targetAssignee.includes(userEmail.toLowerCase())) ||
+          targetAssignee === 'you';
 
-        const isCreatedBySales =
-          t.createdByRole === 'sales' ||
-          (userId && t.createdById === userId) ||
-          (userName && t.createdBy.toLowerCase().includes(userName.toLowerCase()));
+        const isTeamBroadcast =
+          targetAssignee === 'field sales team' ||
+          targetAssignee === 'sales team' ||
+          targetAssignee.includes('team') ||
+          targetAssignee === 'all' ||
+          t.assignedToRole === 'all' ||
+          (t.assignedToRole === 'sales' && (targetAssignee === '' || targetAssignee === 'field sales team' || targetAssignee === 'sales team'));
 
-        const isSalesDept = t.department.toLowerCase().includes('sales');
+        const isCreatedByMe =
+          t.createdByRole === 'sales' &&
+          ((userId && t.createdById === userId) ||
+           (currentLowerName && (t.createdBy || '').toLowerCase().includes(currentLowerName)));
 
-        return isAssignedToSales || isCreatedBySales || isSalesDept;
+        return isDirectToMe || isTeamBroadcast || isCreatedByMe;
       });
     } else {
       // General Reader / Staff role
@@ -187,26 +221,42 @@ export async function getTasks(req, res) {
  */
 export async function getTaskSummary(req, res) {
   try {
-    const userRole = (req.user?.role || req.query.role || 'admin').toLowerCase();
+    const rawRole = req.user?.role || req.query.role || 'admin';
+    const userRole = normalizeRole(rawRole);
+    const userId = req.user?.id || (req.query.userId ? parseInt(req.query.userId, 10) : null);
+    const userName = (req.user?.name || req.query.userName || '').trim().toLowerCase();
+
     const rows = await db.select().from(tasks);
     const all = rows.map(formatTask);
 
+    // If request comes from a specific salesperson, calculate their personal view metrics
+    let scopedList = all;
+    if (userRole === 'sales' && (userId || userName)) {
+      scopedList = all.filter((t) => {
+        const targetAssignee = (t.assignedTo || '').toLowerCase().trim();
+        const isDirect = (userId && t.assignedToId === userId) || (userName && targetAssignee.includes(userName)) || targetAssignee === 'you';
+        const isTeam = targetAssignee.includes('team') || t.assignedToRole === 'all';
+        const isMine = (userId && t.createdById === userId) || (userName && (t.createdBy || '').toLowerCase().includes(userName));
+        return isDirect || isTeam || isMine;
+      });
+    }
+
     const now = new Date();
-    const total = all.length;
-    const completed = all.filter((t) => t.completed).length;
-    const pending = all.filter((t) => !t.completed && t.status !== 'cancelled').length;
-    const inProgress = all.filter((t) => t.status === 'in_progress').length;
-    const highPriority = all.filter((t) => ['high', 'urgent'].includes(t.priority.toLowerCase())).length;
+    const total = scopedList.length;
+    const completed = scopedList.filter((t) => t.completed).length;
+    const pending = scopedList.filter((t) => !t.completed && t.status !== 'cancelled').length;
+    const inProgress = scopedList.filter((t) => t.status === 'in_progress').length;
+    const highPriority = scopedList.filter((t) => ['high', 'urgent'].includes(t.priority.toLowerCase())).length;
 
     // Check overdue tasks
-    const overdue = all.filter((t) => {
+    const overdue = scopedList.filter((t) => {
       if (t.completed) return false;
       if (!t.dueDate) return false;
       const due = new Date(t.dueDate);
       return !isNaN(due.getTime()) && due < now;
     }).length;
 
-    // Role breakdowns
+    // Role breakdowns across all tasks
     const adminTasks = all.filter(
       (t) => t.createdByRole === 'admin' || t.assignedToRole === 'admin' || t.department.toLowerCase().includes('executive')
     ).length;
@@ -219,15 +269,14 @@ export async function getTaskSummary(req, res) {
       (t) =>
         t.createdByRole === 'sales' ||
         t.assignedToRole === 'sales' ||
-        t.assignedToRole === 'field_sales' ||
         t.department.toLowerCase().includes('sales')
     ).length;
 
-    const otherTasks = Math.max(0, total - (adminTasks + managerTasks + salesTasks));
+    const otherTasks = Math.max(0, all.length - (adminTasks + managerTasks + salesTasks));
 
     // Department grouping
     const byDepartment = {};
-    all.forEach((t) => {
+    scopedList.forEach((t) => {
       const dept = t.department || 'General';
       byDepartment[dept] = (byDepartment[dept] || 0) + 1;
     });
@@ -235,11 +284,15 @@ export async function getTaskSummary(req, res) {
     return res.json({
       role: userRole,
       total,
+      totalTasks: total,
       completed,
+      completedTasks: completed,
       pending,
+      pendingTasks: pending,
       inProgress,
       overdue,
       highPriority,
+      salesTasks,
       byRole: {
         adminTasks,
         managerTasks,
@@ -294,6 +347,8 @@ export async function createTask(req, res) {
     assignedToRole,
     department,
     category,
+    notes,
+    outcome,
     // Creator override if not authenticated
     createdBy,
     createdById,
@@ -307,12 +362,50 @@ export async function createTask(req, res) {
   // Determine Creator attributes from auth token or body
   const authorName = req.user?.name || createdBy?.trim() || 'Admin';
   const authorId = req.user?.id || (createdById ? parseInt(createdById, 10) : null);
-  const authorRole = (req.user?.role || createdByRole || req.body.role || 'admin').toLowerCase();
+  const authorRole = normalizeRole(req.user?.role || createdByRole || req.body.role || 'admin');
 
-  // Target role / department defaults
-  const targetRole = (assignedToRole || (authorRole === 'sales' ? 'sales' : 'all')).toLowerCase();
-  const taskDept = department ? department.trim() : (authorRole === 'sales' ? 'Sales' : authorRole === 'manager' ? 'Operations' : 'General');
-  const taskCategory = category ? category.trim() : (authorRole === 'sales' ? 'Sales Follow-up' : 'General');
+  // Determine Assignee details
+  const cleanAssignee = assignedTo ? assignedTo.trim() : (authorRole === 'sales' ? authorName : 'Field Sales Team');
+  let effectiveAssignedToId = assignedToId ? parseInt(assignedToId, 10) : null;
+  let effectiveAssignedRole = assignedToRole ? normalizeRole(assignedToRole) : null;
+
+  // Auto-detect role and ID if assigning to specific staff member or Field Sales Team
+  const lowerAssignee = cleanAssignee.toLowerCase();
+  const isTeam = lowerAssignee.includes('team') || lowerAssignee === 'all';
+
+  if (isTeam) {
+    effectiveAssignedRole = effectiveAssignedRole || 'sales';
+    effectiveAssignedToId = null;
+  } else if (!effectiveAssignedToId && !isTeam && cleanAssignee !== 'You') {
+    // Try to lookup user from systemUsers or staffMembers by name
+    try {
+      const [matchedUser] = await db
+        .select()
+        .from(systemUsers)
+        .where(ilike(systemUsers.name, `%${cleanAssignee}%`));
+      if (matchedUser) {
+        effectiveAssignedToId = matchedUser.id;
+        effectiveAssignedRole = effectiveAssignedRole || normalizeRole(matchedUser.role);
+      } else {
+        const [matchedStaff] = await db
+          .select()
+          .from(staffMembers)
+          .where(ilike(staffMembers.name, `%${cleanAssignee}%`));
+        if (matchedStaff) {
+          effectiveAssignedRole = effectiveAssignedRole || (matchedStaff.role?.toLowerCase().includes('sales') ? 'sales' : 'staff');
+        }
+      }
+    } catch {
+      // Non-fatal if lookup fails
+    }
+  }
+
+  if (!effectiveAssignedRole) {
+    effectiveAssignedRole = authorRole === 'sales' ? 'sales' : 'all';
+  }
+
+  const taskDept = department ? department.trim() : (effectiveAssignedRole === 'sales' ? 'Field Sales' : authorRole === 'manager' ? 'Operations' : 'General');
+  const taskCategory = category ? category.trim() : (effectiveAssignedRole === 'sales' ? 'Sales Follow-up' : 'General');
   const taskStatus = status && ['pending', 'in_progress', 'completed', 'cancelled'].includes(status) ? status : 'pending';
 
   const generatedTaskId = `t_${Date.now()}_${Math.floor(100 + Math.random() * 900)}`;
@@ -331,6 +424,8 @@ export async function createTask(req, res) {
         completed: taskStatus === 'completed',
         completedAt: taskStatus === 'completed' ? new Date() : null,
         status: taskStatus,
+        notes: notes ? notes.trim() : '',
+        outcome: outcome ? outcome.trim() : '',
         
         // Creator
         createdBy: authorName,
@@ -338,9 +433,9 @@ export async function createTask(req, res) {
         createdByRole: authorRole,
         
         // Assignee
-        assignedTo: assignedTo ? assignedTo.trim() : (authorRole === 'sales' ? authorName : 'You'),
-        assignedToId: assignedToId ? parseInt(assignedToId, 10) : null,
-        assignedToRole: targetRole,
+        assignedTo: cleanAssignee,
+        assignedToId: effectiveAssignedToId,
+        assignedToRole: effectiveAssignedRole,
         department: taskDept,
         category: taskCategory,
       })
@@ -354,7 +449,7 @@ export async function createTask(req, res) {
 }
 
 /**
- * PUT /api/tasks/:id or PATCH /api/tasks/:id — Update task details
+ * PUT /api/tasks/:id or PATCH /api/tasks/:id — Update task details, status & visit outcome notes
  */
 export async function updateTask(req, res) {
   const { id } = req.params;
@@ -367,6 +462,9 @@ export async function updateTask(req, res) {
     priority,
     status,
     completed,
+    completedAt,
+    notes,
+    outcome,
     assignedTo,
     assignedToId,
     assignedToRole,
@@ -394,17 +492,24 @@ export async function updateTask(req, res) {
     if (priority !== undefined) updates.priority = priority;
     if (assignedTo !== undefined) updates.assignedTo = assignedTo.trim();
     if (assignedToId !== undefined) updates.assignedToId = assignedToId ? parseInt(assignedToId, 10) : null;
-    if (assignedToRole !== undefined) updates.assignedToRole = assignedToRole.toLowerCase();
+    if (assignedToRole !== undefined) updates.assignedToRole = normalizeRole(assignedToRole);
     if (department !== undefined) updates.department = department.trim();
     if (category !== undefined) updates.category = category.trim();
+    if (notes !== undefined) updates.notes = notes ? notes.trim() : '';
+    if (outcome !== undefined) updates.outcome = outcome ? outcome.trim() : '';
 
     if (completed !== undefined) {
       updates.completed = Boolean(completed);
-      updates.completedAt = updates.completed ? new Date() : null;
-      if (updates.completed && (!status || status === 'pending')) {
-        updates.status = 'completed';
-      } else if (!updates.completed && (!status || status === 'completed')) {
-        updates.status = 'pending';
+      if (updates.completed) {
+        updates.completedAt = completedAt ? new Date(completedAt) : new Date();
+        if (!status || status === 'pending') {
+          updates.status = 'completed';
+        }
+      } else {
+        updates.completedAt = null;
+        if (!status || status === 'completed') {
+          updates.status = 'pending';
+        }
       }
     }
 
@@ -412,11 +517,15 @@ export async function updateTask(req, res) {
       updates.status = status;
       if (status === 'completed') {
         updates.completed = true;
-        updates.completedAt = new Date();
-      } else if (['pending', 'in_progress'].includes(status) && completed === undefined) {
+        updates.completedAt = completedAt ? new Date(completedAt) : (existing.completedAt || new Date());
+      } else if (['pending', 'in_progress', 'cancelled'].includes(status) && completed === undefined) {
         updates.completed = false;
         updates.completedAt = null;
       }
+    }
+
+    if (completedAt !== undefined && completedAt !== null) {
+      updates.completedAt = new Date(completedAt);
     }
 
     const [updated] = await db

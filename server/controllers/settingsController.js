@@ -56,6 +56,7 @@ export async function createSystemUser(req, res) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = (password || 'GreenFibre@2026').trim();
     const ALLOWED_ROLES = ['admin', 'manager', 'sales', 'field_sales', 'staff', 'reader'];
     const cleanRole = ALLOWED_ROLES.includes(role.toLowerCase()) ? role.toLowerCase() : 'reader';
 

@@ -2,13 +2,6 @@ import { db } from '../db/index.js';
 import { products } from '../db/schema.js';
 import { eq, or, asc } from 'drizzle-orm';
 
-const INITIAL_PRODUCTS_SEED = [
-  { sku: 'GF-CAS-001', name: 'Casserole Set A (3pc)', category: 'Casserole', mrp: '1299', sellingPrice: '899', landedCost: '585', physical: 650 },
-  { sku: 'GF-BWL-014', name: 'Bowl Set B (6pc)', category: 'Bowl', mrp: '799', sellingPrice: '549', landedCost: '410', physical: 180 },
-  { sku: 'GF-PET-002', name: 'Pet Bowl Steel', category: 'Pet Accessories', mrp: '349', sellingPrice: '249', landedCost: '140', physical: 900 },
-  { sku: 'GF-CAS-005', name: 'Casserole Set C (5pc)', category: 'Casserole', mrp: '1899', sellingPrice: '1399', landedCost: '1120', physical: 90 },
-];
-
 function formatProduct(p) {
   const sp = Number(p.sellingPrice || 0);
   const lc = Number(p.landedCost || 0);
@@ -36,15 +29,7 @@ function formatProduct(p) {
 // ── GET all products ──────────────────────────────────────────────────────────
 export async function getAllProducts(req, res) {
   try {
-    let rows = await db.select().from(products).orderBy(asc(products.name));
-
-    // Auto-seed if database products table is empty
-    if (rows.length === 0) {
-      console.log('[productController] Seeding initial products...');
-      await db.insert(products).values(INITIAL_PRODUCTS_SEED).onConflictDoNothing();
-      rows = await db.select().from(products).orderBy(asc(products.name));
-    }
-
+    const rows = await db.select().from(products).orderBy(asc(products.name));
     res.json(rows.map(formatProduct));
   } catch (err) {
     console.error('[productController.getAllProducts]', err);
@@ -55,12 +40,7 @@ export async function getAllProducts(req, res) {
 // ── GET products summary KPI metrics ──────────────────────────────────────────
 export async function getProductSummary(req, res) {
   try {
-    let rows = await db.select().from(products);
-    if (rows.length === 0) {
-      await db.insert(products).values(INITIAL_PRODUCTS_SEED).onConflictDoNothing();
-      rows = await db.select().from(products);
-    }
-
+    const rows = await db.select().from(products);
     const items = rows.map(formatProduct);
     const totalProducts = items.length;
     const totalPhysicalStock = items.reduce((sum, p) => sum + p.stock, 0);
@@ -92,11 +72,7 @@ export async function getProductSummary(req, res) {
 // ── GET distinct product categories ───────────────────────────────────────────
 export async function getProductCategories(req, res) {
   try {
-    let rows = await db.select().from(products);
-    if (rows.length === 0) {
-      await db.insert(products).values(INITIAL_PRODUCTS_SEED).onConflictDoNothing();
-      rows = await db.select().from(products);
-    }
+    const rows = await db.select().from(products);
 
     const items = rows.map(formatProduct);
     const catMap = {};
